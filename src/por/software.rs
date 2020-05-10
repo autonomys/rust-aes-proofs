@@ -1,13 +1,8 @@
+use crate::por::{Block, Piece, BLOCK_SIZE};
 use aes_soft::block_cipher_trait::generic_array::GenericArray;
 use aes_soft::block_cipher_trait::BlockCipher;
 use aes_soft::Aes128;
 use std::io::Write;
-
-pub const BLOCK_SIZE: usize = 16;
-pub const PIECE_SIZE: usize = 4096;
-
-pub type Block = [u8; BLOCK_SIZE];
-pub type Piece = [u8; PIECE_SIZE];
 
 /// Proof of replication encoding purely in software
 pub fn encode(

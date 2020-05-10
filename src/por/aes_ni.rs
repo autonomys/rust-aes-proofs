@@ -2,14 +2,11 @@ use crate::aes128_load4;
 use crate::aes128_load_keys;
 use crate::aes128_store4;
 use crate::aes_low_level::aes_ni;
+use crate::por::Block;
+use crate::por::Piece;
+use crate::por::BLOCK_SIZE;
 use std::convert::TryInto;
 use std::io::Write;
-
-pub const BLOCK_SIZE: usize = 16;
-pub const PIECE_SIZE: usize = 4096;
-
-pub type Block = [u8; BLOCK_SIZE];
-pub type Piece = [u8; PIECE_SIZE];
 
 /// Pipelined proof of replication encoding with AES-NI
 pub fn encode(

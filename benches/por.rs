@@ -5,6 +5,7 @@ use criterion::criterion_main;
 use criterion::Criterion;
 use rust_aes_proofs::aes_low_level::key_expansion;
 use rust_aes_proofs::por::aes_ni;
+use rust_aes_proofs::por::opencl::OpenCLPor;
 use rust_aes_proofs::por::software;
 use test_data::ID;
 use test_data::IV;
@@ -34,7 +35,6 @@ pub fn criterion_benchmark(c: &mut Criterion) {
             })
         });
 
-        // Here we use incorrect key, but performance should be identical
         group.bench_function("PoR-128-decode", |b| {
             let mut piece = PIECE;
             b.iter(|| {
@@ -86,14 +86,53 @@ pub fn criterion_benchmark(c: &mut Criterion) {
 
         group.finish();
     }
+    {
+        let mut codec = OpenCLPor::new().unwrap();
+
+        let keys = key_expansion::expand_keys_aes_128_enc(&ID);
+
+        let mut group = c.benchmark_group("OpenCL");
+        group.sample_size(10);
+
+        group.bench_function("PoR-128-encode-single", |b| {
+            b.iter(|| {
+                codec.encode(&PIECE, &[IV], &keys).unwrap();
+            })
+        });
+
+        let pieces: Vec<u8> = (0..100).flat_map(|_| PIECE.to_vec()).collect();
+        let ivs = vec![IV; 100];
+
+        group.bench_function("PoR-128-encode-100", |b| {
+            b.iter(|| {
+                codec.encode(&pieces, &ivs, &keys).unwrap();
+            })
+        });
+
+        group.bench_function("PoR-128-decode-single", |b| {
+            b.iter(|| {
+                codec.decode(&PIECE, &[IV], &keys).unwrap();
+            })
+        });
+
+        let encodings: Vec<u8> = (0..100).flat_map(|_| PIECE.to_vec()).collect();
+
+        group.bench_function("PoR-128-decode-100", |b| {
+            b.iter(|| {
+                codec.decode(&encodings, &ivs, &keys).unwrap();
+            })
+        });
+
+        group.finish();
+    }
 }
 
 criterion_group!(benches, criterion_benchmark);
 criterion_main!(benches);
 
 mod test_data {
-    use rust_aes_proofs::por::aes_ni::Block;
-    use rust_aes_proofs::por::aes_ni::Piece;
+    use rust_aes_proofs::por::Block;
+    use rust_aes_proofs::por::Piece;
 
     pub const IV: Block = [
         //                13

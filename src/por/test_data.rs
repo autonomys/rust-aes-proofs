@@ -1,5 +1,5 @@
-use crate::por::aes_ni::Block;
-use crate::por::aes_ni::Piece;
+use crate::por::Block;
+use crate::por::Piece;
 
 pub const IV: Block = [
     //                13
