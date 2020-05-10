@@ -19,3 +19,7 @@ criterion = "0.3.2"
 [[bench]]
 name = "pot"
 harness = false
+
+[[bench]]
+name = "por"
+harness = false
