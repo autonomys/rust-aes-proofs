@@ -1,8 +1,9 @@
+use crate::aes128_load;
 use crate::aes128_load4;
 use crate::aes128_load_keys;
+use crate::aes128_store;
 use crate::aes_low_level::aes_ni;
 use rayon::prelude::*;
-use std::convert::TryInto;
 
 pub const BLOCK_SIZE: usize = 16;
 
@@ -18,16 +19,15 @@ pub fn prove(
     let inner_iterations = aes_iterations / verifier_parallelism;
 
     let mut result = Vec::<u8>::with_capacity(verifier_parallelism * BLOCK_SIZE);
+    let keys_reg = unsafe { aes128_load_keys!(keys) };
     let mut block = *seed;
+    let mut block_reg = unsafe { aes128_load!(block) };
 
     for _ in 0..verifier_parallelism {
-        block = unsafe {
-            aes_benchmarks::encode_aes_ni_128(
-                &keys,
-                block[..].try_into().unwrap(),
-                inner_iterations,
-            )
-        };
+        block_reg = aes_ni::pot_prove_low_level(keys_reg, block_reg, inner_iterations);
+        unsafe {
+            aes128_store!(block, block_reg);
+        }
         result.extend_from_slice(&block);
     }
 
@@ -65,7 +65,12 @@ pub fn verify_pipelined_4x(
             let blocks_reg = unsafe { aes128_load4!(block0, block1, block2, block3) };
             previous = block3;
 
-            aes_ni::pot_verify_pipelined_x4(keys_reg, expected_reg, blocks_reg, inner_iterations)
+            aes_ni::pot_verify_pipelined_x4_low_level(
+                keys_reg,
+                expected_reg,
+                blocks_reg,
+                inner_iterations,
+            )
         })
         .fold(true, |a, b| a && b)
 }
@@ -109,7 +114,7 @@ pub fn verify_pipelined_4x_parallel(
             let expected_reg = unsafe { aes128_load4!(seed, block0, block1, block2) };
             let blocks_reg = unsafe { aes128_load4!(block0, block1, block2, block3) };
 
-            let result = aes_ni::pot_verify_pipelined_x4(
+            let result = aes_ni::pot_verify_pipelined_x4_low_level(
                 keys_reg,
                 expected_reg,
                 blocks_reg,

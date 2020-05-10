@@ -1,6 +1,15 @@
 use core::arch::x86_64::*;
 
 #[macro_export]
+macro_rules! aes128_store {
+    ($to:expr, $from:expr) => {{
+        use core::arch::x86_64::*;
+
+        _mm_storeu_si128($to.as_mut_ptr() as *mut __m128i, $from);
+    }};
+}
+
+#[macro_export]
 macro_rules! aes128_store4 {
     ($to:expr, $from:expr) => {{
         use core::arch::x86_64::*;
@@ -81,6 +90,15 @@ macro_rules! aes128_decode4_last {
         $target[1] = _mm_aesdeclast_si128($target[1], $key);
         $target[2] = _mm_aesdeclast_si128($target[2], $key);
         $target[3] = _mm_aesdeclast_si128($target[3], $key);
+    }};
+}
+
+#[macro_export]
+macro_rules! aes128_load {
+    ($var:expr) => {{
+        use core::arch::x86_64::*;
+
+        _mm_loadu_si128($var.as_ptr() as *const __m128i)
     }};
 }
 
@@ -233,7 +251,32 @@ pub fn por_decode_pipelined_x4_low_level(
     }
 }
 
-pub fn pot_verify_pipelined_x4(
+pub fn pot_prove_low_level(
+    keys_reg: [__m128i; 11],
+    mut block_reg: __m128i,
+    inner_iterations: usize,
+) -> __m128i {
+    unsafe {
+        for _ in 0..inner_iterations {
+            block_reg = _mm_xor_si128(block_reg, keys_reg[0]);
+            block_reg = _mm_aesenc_si128(block_reg, keys_reg[1]);
+            block_reg = _mm_aesenc_si128(block_reg, keys_reg[2]);
+            block_reg = _mm_aesenc_si128(block_reg, keys_reg[3]);
+            block_reg = _mm_aesenc_si128(block_reg, keys_reg[4]);
+            block_reg = _mm_aesenc_si128(block_reg, keys_reg[5]);
+            block_reg = _mm_aesenc_si128(block_reg, keys_reg[6]);
+            block_reg = _mm_aesenc_si128(block_reg, keys_reg[7]);
+            block_reg = _mm_aesenc_si128(block_reg, keys_reg[8]);
+            block_reg = _mm_aesenc_si128(block_reg, keys_reg[9]);
+
+            block_reg = _mm_aesenclast_si128(block_reg, keys_reg[10]);
+        }
+    }
+
+    block_reg
+}
+
+pub fn pot_verify_pipelined_x4_low_level(
     keys_reg: [__m128i; 11],
     expected_reg: [__m128i; 4],
     mut blocks_reg: [__m128i; 4],
