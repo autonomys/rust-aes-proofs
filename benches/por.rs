@@ -5,48 +5,87 @@ use criterion::criterion_main;
 use criterion::Criterion;
 use rust_aes_proofs::aes_low_level::key_expansion;
 use rust_aes_proofs::por::aes_ni;
+use rust_aes_proofs::por::software;
 use test_data::ID;
 use test_data::IV;
 use test_data::PIECE;
 
 pub fn criterion_benchmark(c: &mut Criterion) {
-    let keys = key_expansion::expand_keys_aes_128_enc(&ID);
+    {
+        let keys = key_expansion::expand_keys_aes_128_enc(&ID);
 
-    let mut group = c.benchmark_group("AES-NI");
-    group.sample_size(100);
+        let mut group = c.benchmark_group("AES-NI");
+        group.sample_size(100);
 
-    let aes_iterations = 256;
-    let breadth_iterations = 16;
+        let aes_iterations = 256;
+        let breadth_iterations = 16;
 
-    group.bench_function("PoR-128-encode", |b| {
-        let mut pieces = [PIECE; 4];
-        let ivs = [&IV; 4];
-        b.iter(|| {
-            black_box(aes_ni::encode(
-                &mut pieces,
-                &keys,
-                ivs,
-                aes_iterations,
-                breadth_iterations,
-            ))
-        })
-    });
+        group.bench_function("PoR-128-encode", |b| {
+            let mut pieces = [PIECE; 4];
+            let ivs = [&IV; 4];
+            b.iter(|| {
+                black_box(aes_ni::encode(
+                    &mut pieces,
+                    &keys,
+                    ivs,
+                    aes_iterations,
+                    breadth_iterations,
+                ))
+            })
+        });
 
-    // Here we use incorrect key, but performance should be identical
-    group.bench_function("PoR-128-decode", |b| {
-        let mut piece = PIECE;
-        b.iter(|| {
-            black_box(aes_ni::decode(
-                &mut piece,
-                &keys,
-                &IV,
-                aes_iterations,
-                breadth_iterations,
-            ))
-        })
-    });
+        // Here we use incorrect key, but performance should be identical
+        group.bench_function("PoR-128-decode", |b| {
+            let mut piece = PIECE;
+            b.iter(|| {
+                black_box(aes_ni::decode(
+                    &mut piece,
+                    &keys,
+                    &IV,
+                    aes_iterations,
+                    breadth_iterations,
+                ))
+            })
+        });
 
-    group.finish();
+        group.finish();
+    }
+    {
+        let mut group = c.benchmark_group("Software");
+        group.sample_size(100);
+
+        let aes_iterations = 256;
+        let breadth_iterations = 16;
+
+        group.bench_function("PoR-128-encode", |b| {
+            let mut piece = PIECE;
+            b.iter(|| {
+                black_box(software::encode(
+                    &mut piece,
+                    &ID,
+                    &IV,
+                    aes_iterations,
+                    breadth_iterations,
+                ))
+            })
+        });
+
+        // Here we use incorrect key, but performance should be identical
+        group.bench_function("PoR-128-decode", |b| {
+            let mut piece = PIECE;
+            b.iter(|| {
+                black_box(software::decode(
+                    &mut piece,
+                    &ID,
+                    &IV,
+                    aes_iterations,
+                    breadth_iterations,
+                ))
+            })
+        });
+
+        group.finish();
+    }
 }
 
 criterion_group!(benches, criterion_benchmark);
