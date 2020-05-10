@@ -5,7 +5,6 @@ use crate::aes_low_level::aes_ni;
 use crate::por::Block;
 use crate::por::Piece;
 use crate::por::BLOCK_SIZE;
-use std::convert::TryInto;
 use std::io::Write;
 
 /// Pipelined proof of replication encoding with AES-NI
@@ -42,6 +41,7 @@ fn encode_internal(
 ) {
     let [piece0, piece1, piece2, piece3] = pieces;
 
+    let keys_reg = unsafe { aes128_load_keys!(keys) };
     let mut feedbacks = [*iv[0], *iv[1], *iv[2], *iv[3]];
 
     piece0
@@ -50,38 +50,23 @@ fn encode_internal(
         .zip(piece2.chunks_exact_mut(BLOCK_SIZE))
         .zip(piece3.chunks_exact_mut(BLOCK_SIZE))
         .map(|(((piece0, piece1), piece2), piece3)| [piece0, piece1, piece2, piece3])
-        .for_each(|mut blocks| {
-            blocks
-                .iter_mut()
-                .zip(&feedbacks)
-                .for_each(|(block, feedback)| {
-                    block.iter_mut().zip(feedback.iter()).for_each(
-                        |(block_byte, feedback_byte)| {
-                            *block_byte ^= feedback_byte;
-                        },
-                    );
-                });
+        .for_each(|blocks| {
+            let mut blocks_reg =
+                unsafe { aes128_load4!(blocks[0], blocks[1], blocks[2], blocks[3]) };
+            let feedbacks_reg =
+                unsafe { aes128_load4!(feedbacks[0], feedbacks[1], feedbacks[2], feedbacks[3]) };
 
-            // Current encrypted block
-            feedbacks = unsafe {
-                aes_benchmarks::encode_aes_ni_128_pipelined_x4(
-                    &keys,
-                    &[
-                        blocks[0][..].try_into().unwrap(),
-                        blocks[1][..].try_into().unwrap(),
-                        blocks[2][..].try_into().unwrap(),
-                        blocks[3][..].try_into().unwrap(),
-                    ],
-                    aes_iterations,
-                )
-            };
+            aes_ni::por_encode_pipelined_x4_low_level(
+                keys_reg,
+                &mut blocks_reg,
+                feedbacks_reg,
+                aes_iterations,
+            );
 
-            blocks
-                .iter_mut()
-                .zip(feedbacks.iter())
-                .for_each(|(block, feedback)| {
-                    block.write_all(feedback).unwrap();
-                });
+            unsafe {
+                aes128_store4!(blocks, blocks_reg);
+                aes128_store4!(feedbacks, blocks_reg);
+            }
         });
 }
 

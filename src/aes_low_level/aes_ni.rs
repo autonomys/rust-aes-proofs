@@ -37,6 +37,30 @@ macro_rules! aes128_xor4x4 {
 }
 
 #[macro_export]
+macro_rules! aes128_encode4 {
+    ($target:expr, $key:expr) => {{
+        use core::arch::x86_64::*;
+
+        $target[0] = _mm_aesenc_si128($target[0], $key);
+        $target[1] = _mm_aesenc_si128($target[1], $key);
+        $target[2] = _mm_aesenc_si128($target[2], $key);
+        $target[3] = _mm_aesenc_si128($target[3], $key);
+    }};
+}
+
+#[macro_export]
+macro_rules! aes128_encode4_last {
+    ($target:expr, $key:expr) => {{
+        use core::arch::x86_64::*;
+
+        $target[0] = _mm_aesenclast_si128($target[0], $key);
+        $target[1] = _mm_aesenclast_si128($target[1], $key);
+        $target[2] = _mm_aesenclast_si128($target[2], $key);
+        $target[3] = _mm_aesenclast_si128($target[3], $key);
+    }};
+}
+
+#[macro_export]
 macro_rules! aes128_decode4 {
     ($target:expr, $key:expr) => {{
         use core::arch::x86_64::*;
@@ -154,6 +178,33 @@ macro_rules! compare_eq4 {
 //         aes128_store4!(blocks, blocks_reg);
 //     }
 // }
+
+pub fn por_encode_pipelined_x4_low_level(
+    keys_reg: [__m128i; 11],
+    blocks_reg: &mut [__m128i; 4],
+    feedbacks_reg: [__m128i; 4],
+    aes_iterations: usize,
+) {
+    unsafe {
+        aes128_xor4x4!(blocks_reg, feedbacks_reg);
+
+        for _ in 0..aes_iterations {
+            aes128_xor4!(blocks_reg, keys_reg[0]);
+
+            aes128_encode4!(blocks_reg, keys_reg[1]);
+            aes128_encode4!(blocks_reg, keys_reg[2]);
+            aes128_encode4!(blocks_reg, keys_reg[3]);
+            aes128_encode4!(blocks_reg, keys_reg[4]);
+            aes128_encode4!(blocks_reg, keys_reg[5]);
+            aes128_encode4!(blocks_reg, keys_reg[6]);
+            aes128_encode4!(blocks_reg, keys_reg[7]);
+            aes128_encode4!(blocks_reg, keys_reg[8]);
+            aes128_encode4!(blocks_reg, keys_reg[9]);
+
+            aes128_encode4_last!(blocks_reg, keys_reg[10]);
+        }
+    }
+}
 
 pub fn por_decode_pipelined_x4_low_level(
     keys_reg: [__m128i; 11],
