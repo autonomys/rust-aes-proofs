@@ -1,12 +1,18 @@
 [package]
 name = "rust-aes-proofs"
+description = "Various AES-based Proof-of-Replication and Proof-of-Time implementations and benchmarks"
 version = "0.1.0"
 authors = [
     "Jeremiah Wagstaff <jeremiah.wagstaff@gmail.com>",
     "Nazar Mokrynskyi <nazar@mokrynskyi.com>"
 ]
 edition = "2018"
+license = "MIT"
 autobenches = false
+keywords = ["subspace", "aes", "proof-of-replication", "proof-of-time"]
+documentation = "https://docs.rs/rust-aes-proofs"
+repository = "https://github.com/subspace/rust-aes-proofs"
+readme = "readme.md"
 
 [dependencies]
 aes-soft = "0.3.3"
