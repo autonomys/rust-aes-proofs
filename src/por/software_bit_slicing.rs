@@ -1,14 +1,18 @@
 use crate::por::{Block, Piece, BLOCK_SIZE};
+use aes_soft::block_cipher_trait::generic_array::typenum::{U16, U8};
 use aes_soft::block_cipher_trait::generic_array::GenericArray;
 use aes_soft::block_cipher_trait::BlockCipher;
 use aes_soft::Aes128;
 use std::io::Write;
+use std::mem;
+
+pub type Block128x8 = GenericArray<GenericArray<u8, U16>, U8>;
 
 /// Proof of replication encoding purely in software (using bit slicing approach)
 pub fn encode(
-    piece: &mut Piece,
+    pieces: &mut [Piece; 8],
     key: &Block,
-    iv: &Block,
+    ivs: [&Block; 8],
     aes_iterations: usize,
     breadth_iterations: usize,
 ) {
@@ -16,15 +20,15 @@ pub fn encode(
     //  will have severe performance hit
     let cipher = Aes128::new(GenericArray::from_slice(key));
     for _ in 0..breadth_iterations {
-        encode_internal(piece, &cipher, iv, aes_iterations);
+        encode_internal(pieces, &cipher, ivs, aes_iterations);
     }
 }
 
 /// Proof of replication decoding purely in software (using bit slicing approach)
 pub fn decode(
-    piece: &mut Piece,
+    pieces: &mut [Piece; 8],
     key: &Block,
-    iv: &Block,
+    ivs: [&Block; 8],
     aes_iterations: usize,
     breadth_iterations: usize,
 ) {
@@ -32,52 +36,130 @@ pub fn decode(
     //  will have severe performance hit
     let cipher = Aes128::new(GenericArray::from_slice(key));
     for _ in 0..breadth_iterations {
-        decode_internal(piece, &cipher, iv, aes_iterations);
+        decode_internal(pieces, &cipher, ivs, aes_iterations);
     }
 }
 
-fn encode_internal(piece: &mut Piece, cipher: &Aes128, iv: &Block, aes_iterations: usize) {
-    let mut feedback = *iv;
+fn encode_internal(
+    pieces: &mut [Piece; 8],
+    cipher: &Aes128,
+    ivs: [&Block; 8],
+    aes_iterations: usize,
+) {
+    let [piece0, piece1, piece2, piece3, piece4, piece5, piece6, piece7] = pieces;
+    let mut feedbacks = [
+        *ivs[0], *ivs[1], *ivs[2], *ivs[3], *ivs[4], *ivs[5], *ivs[6], *ivs[7],
+    ];
 
-    piece
+    let mut blocks_generic_array = Block128x8::default();
+
+    piece0
         .chunks_exact_mut(BLOCK_SIZE)
-        .map(GenericArray::from_mut_slice)
-        .for_each(|block| {
-            block
+        .zip(piece1.chunks_exact_mut(BLOCK_SIZE))
+        .zip(piece2.chunks_exact_mut(BLOCK_SIZE))
+        .zip(piece3.chunks_exact_mut(BLOCK_SIZE))
+        .zip(piece4.chunks_exact_mut(BLOCK_SIZE))
+        .zip(piece5.chunks_exact_mut(BLOCK_SIZE))
+        .zip(piece6.chunks_exact_mut(BLOCK_SIZE))
+        .zip(piece7.chunks_exact_mut(BLOCK_SIZE))
+        .map(
+            |(((((((piece0, piece1), piece2), piece3), piece4), piece5), piece6), piece7)| {
+                [
+                    piece0, piece1, piece2, piece3, piece4, piece5, piece6, piece7,
+                ]
+            },
+        )
+        .for_each(|mut blocks| {
+            blocks
                 .iter_mut()
-                .zip(&feedback)
-                .for_each(|(block_byte, feedback_byte)| {
-                    *block_byte ^= feedback_byte;
+                .zip(feedbacks.iter())
+                .for_each(|(block, feedback)| {
+                    block.iter_mut().zip(feedback.iter()).for_each(
+                        |(block_byte, feedback_byte)| {
+                            *block_byte ^= feedback_byte;
+                        },
+                    );
                 });
 
+            swap_blocks(&mut blocks_generic_array, &mut blocks);
             for _ in 0..aes_iterations {
-                cipher.encrypt_block(block);
+                cipher.encrypt_blocks(&mut blocks_generic_array);
             }
+            swap_blocks(&mut blocks_generic_array, &mut blocks);
 
-            feedback.as_mut().write_all(block).unwrap();
+            feedbacks
+                .iter_mut()
+                .zip(blocks.iter())
+                .for_each(|(feedback, block)| {
+                    feedback.as_mut().write_all(block).unwrap();
+                });
         });
 }
 
-fn decode_internal(piece: &mut Piece, cipher: &Aes128, iv: &Block, aes_iterations: usize) {
-    let mut feedback = *iv;
+fn decode_internal(
+    pieces: &mut [Piece; 8],
+    cipher: &Aes128,
+    ivs: [&Block; 8],
+    aes_iterations: usize,
+) {
+    let [piece0, piece1, piece2, piece3, piece4, piece5, piece6, piece7] = pieces;
+    let mut feedbacks = [
+        *ivs[0], *ivs[1], *ivs[2], *ivs[3], *ivs[4], *ivs[5], *ivs[6], *ivs[7],
+    ];
 
-    piece
+    let mut blocks_generic_array = Block128x8::default();
+
+    piece0
         .chunks_exact_mut(BLOCK_SIZE)
-        .map(GenericArray::from_mut_slice)
-        .for_each(|block| {
-            let previous_feedback = feedback;
-            feedback.as_mut().write_all(block).unwrap();
-
-            for _ in 0..aes_iterations {
-                cipher.decrypt_block(block);
-            }
-
-            block
+        .zip(piece1.chunks_exact_mut(BLOCK_SIZE))
+        .zip(piece2.chunks_exact_mut(BLOCK_SIZE))
+        .zip(piece3.chunks_exact_mut(BLOCK_SIZE))
+        .zip(piece4.chunks_exact_mut(BLOCK_SIZE))
+        .zip(piece5.chunks_exact_mut(BLOCK_SIZE))
+        .zip(piece6.chunks_exact_mut(BLOCK_SIZE))
+        .zip(piece7.chunks_exact_mut(BLOCK_SIZE))
+        .map(
+            |(((((((piece0, piece1), piece2), piece3), piece4), piece5), piece6), piece7)| {
+                [
+                    piece0, piece1, piece2, piece3, piece4, piece5, piece6, piece7,
+                ]
+            },
+        )
+        .for_each(|mut blocks| {
+            let previous_feedbacks = feedbacks;
+            feedbacks
                 .iter_mut()
-                .zip(&previous_feedback)
-                .for_each(|(block_byte, feedback_byte)| {
-                    *block_byte ^= feedback_byte;
+                .zip(blocks.iter())
+                .for_each(|(feedback, block)| {
+                    feedback.as_mut().write_all(block).unwrap();
                 });
+
+            swap_blocks(&mut blocks_generic_array, &mut blocks);
+            for _ in 0..aes_iterations {
+                cipher.decrypt_blocks(&mut blocks_generic_array);
+            }
+            swap_blocks(&mut blocks_generic_array, &mut blocks);
+
+            blocks
+                .iter_mut()
+                .zip(previous_feedbacks.iter())
+                .for_each(|(block, feedback)| {
+                    block.iter_mut().zip(feedback.iter()).for_each(
+                        |(block_byte, feedback_byte)| {
+                            *block_byte ^= feedback_byte;
+                        },
+                    );
+                });
+        });
+}
+
+fn swap_blocks(generic_blocks: &mut Block128x8, slice_blocks: &mut [&mut [u8]; 8]) {
+    generic_blocks
+        .iter_mut()
+        .zip(slice_blocks.iter_mut())
+        .for_each(|(x, y)| {
+            let y = GenericArray::from_mut_slice(y);
+            mem::swap(x, y);
         });
 }
 
@@ -95,15 +177,19 @@ mod tests {
     fn test() {
         let aes_iterations = 256;
 
-        let mut encoding = INPUT;
-        encode(&mut encoding, &ID, &IV, aes_iterations, 1);
+        let mut encodings = [INPUT; 8];
+        encode(&mut encodings, &ID, [&IV; 8], aes_iterations, 1);
 
-        assert_eq!(encoding.to_vec(), CORRECT_ENCODING.to_vec());
+        for encoding in encodings.iter() {
+            assert_eq!(encoding.to_vec(), CORRECT_ENCODING.to_vec());
+        }
 
-        let mut decoding = CORRECT_ENCODING;
-        decode(&mut decoding, &ID, &IV, aes_iterations, 1);
+        let mut decodings = [CORRECT_ENCODING; 8];
+        decode(&mut decodings, &ID, [&IV; 8], aes_iterations, 1);
 
-        assert_eq!(decoding.to_vec(), INPUT.to_vec());
+        for decoding in decodings.iter() {
+            assert_eq!(decoding.to_vec(), INPUT.to_vec());
+        }
     }
 
     #[test]
@@ -119,12 +205,14 @@ mod tests {
         let mut iv = [0u8; 16];
         rand::thread_rng().fill(&mut iv[..]);
 
-        let mut encoding = input;
-        encode(&mut encoding, &id, &iv, aes_iterations, 1);
+        let mut encodings = [input; 8];
+        encode(&mut encodings, &id, [&iv; 8], aes_iterations, 1);
 
-        let mut decoding = encoding;
-        decode(&mut decoding, &id, &iv, aes_iterations, 1);
+        let mut decodings = encodings;
+        decode(&mut decodings, &id, [&iv; 8], aes_iterations, 1);
 
-        assert_eq!(decoding.to_vec(), input.to_vec());
+        for decoding in decodings.iter() {
+            assert_eq!(decoding.to_vec(), input.to_vec());
+        }
     }
 }

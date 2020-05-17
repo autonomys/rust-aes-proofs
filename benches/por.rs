@@ -58,12 +58,12 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         let breadth_iterations = 16;
 
         group.bench_function("PoR-128-encode", |b| {
-            let mut piece = PIECE;
+            let mut pieces = [PIECE; 8];
             b.iter(|| {
                 black_box(software_bit_slicing::encode(
-                    &mut piece,
+                    &mut pieces,
                     &ID,
-                    &IV,
+                    [&IV; 8],
                     aes_iterations,
                     breadth_iterations,
                 ))
@@ -72,12 +72,12 @@ pub fn criterion_benchmark(c: &mut Criterion) {
 
         // Here we use incorrect key, but performance should be identical
         group.bench_function("PoR-128-decode", |b| {
-            let mut piece = PIECE;
+            let mut pieces = [PIECE; 8];
             b.iter(|| {
                 black_box(software_bit_slicing::decode(
-                    &mut piece,
+                    &mut pieces,
                     &ID,
-                    &IV,
+                    [&IV; 8],
                     aes_iterations,
                     breadth_iterations,
                 ))
