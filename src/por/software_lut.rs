@@ -1,10 +1,8 @@
 use crate::por::{Block, Piece, BLOCK_SIZE};
-use aes_soft::block_cipher_trait::generic_array::GenericArray;
-use aes_soft::block_cipher_trait::BlockCipher;
-use aes_soft::Aes128;
+use aes_frast::aes_core;
 use std::io::Write;
 
-/// Proof of replication encoding purely in software
+/// Proof of replication encoding purely in software (using look-up table approach)
 pub fn encode(
     piece: &mut Piece,
     key: &Block,
@@ -14,13 +12,14 @@ pub fn encode(
 ) {
     // TODO: This should probably be made external, otherwise using the same key for frequent calls
     //  will have severe performance hit
-    let cipher = Aes128::new(GenericArray::from_slice(key));
+    let mut keys = [0u32; 44];
+    aes_core::setkey_enc_k128(key, &mut keys);
     for _ in 0..breadth_iterations {
-        encode_internal(piece, &cipher, iv, aes_iterations);
+        encode_internal(piece, &keys, iv, aes_iterations);
     }
 }
 
-/// Pipelined proof of replication decoding with AES-NI
+/// Proof of replication decoding purely in software (using look-up table approach)
 pub fn decode(
     piece: &mut Piece,
     key: &Block,
@@ -30,55 +29,53 @@ pub fn decode(
 ) {
     // TODO: This should probably be made external, otherwise using the same key for frequent calls
     //  will have severe performance hit
-    let cipher = Aes128::new(GenericArray::from_slice(key));
+    let mut keys = [0u32; 44];
+    aes_core::setkey_dec_k128(key, &mut keys);
     for _ in 0..breadth_iterations {
-        decode_internal(piece, &cipher, iv, aes_iterations);
+        decode_internal(piece, &keys, iv, aes_iterations);
     }
 }
 
-fn encode_internal(piece: &mut Piece, cipher: &Aes128, iv: &Block, aes_iterations: usize) {
+fn encode_internal(piece: &mut Piece, keys: &[u32; 44], iv: &Block, aes_iterations: usize) {
     let mut feedback = *iv;
 
-    piece
-        .chunks_exact_mut(BLOCK_SIZE)
-        .map(GenericArray::from_mut_slice)
-        .for_each(|block| {
-            block
-                .iter_mut()
-                .zip(&feedback)
-                .for_each(|(block_byte, feedback_byte)| {
-                    *block_byte ^= feedback_byte;
-                });
+    piece.chunks_exact_mut(BLOCK_SIZE).for_each(|block| {
+        block
+            .iter_mut()
+            .zip(&feedback)
+            .for_each(|(block_byte, feedback_byte)| {
+                *block_byte ^= feedback_byte;
+            });
 
-            for _ in 0..aes_iterations {
-                cipher.encrypt_block(block);
-            }
-
-            feedback.as_mut().write_all(block).unwrap();
-        });
+        for _ in 0..aes_iterations {
+            // TODO: This needs to be in-place in aes_frast crate
+            aes_core::block_enc_k128(&block, &mut feedback, keys);
+            block.as_mut().write_all(&feedback).unwrap();
+        }
+    });
 }
 
-fn decode_internal(piece: &mut Piece, cipher: &Aes128, iv: &Block, aes_iterations: usize) {
+fn decode_internal(piece: &mut Piece, keys: &[u32; 44], iv: &Block, aes_iterations: usize) {
     let mut feedback = *iv;
+    let mut tmp: Block = [0u8; 16];
 
-    piece
-        .chunks_exact_mut(BLOCK_SIZE)
-        .map(GenericArray::from_mut_slice)
-        .for_each(|block| {
-            let previous_feedback = feedback;
-            feedback.as_mut().write_all(block).unwrap();
+    piece.chunks_exact_mut(BLOCK_SIZE).for_each(|block| {
+        let previous_feedback = feedback;
+        feedback.as_mut().write_all(block).unwrap();
 
-            for _ in 0..aes_iterations {
-                cipher.decrypt_block(block);
-            }
+        for _ in 0..aes_iterations {
+            // TODO: This needs to be in-place in aes_frast crate
+            aes_core::block_dec_k128(&block, &mut tmp, keys);
+            block.as_mut().write_all(&tmp).unwrap();
+        }
 
-            block
-                .iter_mut()
-                .zip(&previous_feedback)
-                .for_each(|(block_byte, feedback_byte)| {
-                    *block_byte ^= feedback_byte;
-                });
-        });
+        block
+            .iter_mut()
+            .zip(&previous_feedback)
+            .for_each(|(block_byte, feedback_byte)| {
+                *block_byte ^= feedback_byte;
+            });
+    });
 }
 
 #[cfg(test)]
