@@ -20,7 +20,7 @@ struct CachedBuffer {
     buffer_size: usize,
 }
 
-pub struct OpenCLPor {
+pub struct OpenCLPoR {
     buffer_state: Option<CachedBuffer>,
     buffer_iv: Option<CachedBuffer>,
     buffer_round_keys: Mem,
@@ -30,7 +30,7 @@ pub struct OpenCLPor {
     queue: CommandQueue,
 }
 
-impl OpenCLPor {
+impl OpenCLPoR {
     pub fn new() -> Result<Self> {
         let platform = Platform::first()?;
 
@@ -310,7 +310,7 @@ mod tests {
 
     #[test]
     fn test() {
-        let mut codec = OpenCLPor::new().unwrap();
+        let mut codec = OpenCLPoR::new().unwrap();
 
         let keys = key_expansion::expand_keys_aes_128_enc(&ID);
 
@@ -352,7 +352,7 @@ mod tests {
 
     #[test]
     fn test_random() {
-        let mut codec = OpenCLPor::new().unwrap();
+        let mut codec = OpenCLPoR::new().unwrap();
 
         let mut id = [0u8; 16];
         rand::thread_rng().fill(&mut id[..]);

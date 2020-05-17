@@ -4,7 +4,7 @@ use criterion::criterion_group;
 use criterion::criterion_main;
 use criterion::Criterion;
 use rust_aes_proofs::aes_low_level::key_expansion;
-use rust_aes_proofs::por::opencl::OpenCLPor;
+use rust_aes_proofs::por::opencl::OpenCLPoR;
 use rust_aes_proofs::por::software_bit_slicing;
 use rust_aes_proofs::por::{aes_ni, software_lut};
 use test_data::ID;
@@ -123,7 +123,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         group.finish();
     }
     {
-        let mut codec = OpenCLPor::new().unwrap();
+        let mut codec = OpenCLPoR::new().unwrap();
 
         let keys = key_expansion::expand_keys_aes_128_enc(&ID);
 
