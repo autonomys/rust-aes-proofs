@@ -12,6 +12,8 @@ pub fn encode(
     aes_iterations: usize,
     breadth_iterations: usize,
 ) {
+    // TODO: This should probably be made external, otherwise using the same key for frequent calls
+    //  will have severe performance hit
     let cipher = Aes128::new(GenericArray::from_slice(key));
     for _ in 0..breadth_iterations {
         encode_internal(piece, &cipher, iv, aes_iterations);
@@ -26,6 +28,8 @@ pub fn decode(
     aes_iterations: usize,
     breadth_iterations: usize,
 ) {
+    // TODO: This should probably be made external, otherwise using the same key for frequent calls
+    //  will have severe performance hit
     let cipher = Aes128::new(GenericArray::from_slice(key));
     for _ in 0..breadth_iterations {
         decode_internal(piece, &cipher, iv, aes_iterations);
@@ -84,6 +88,8 @@ mod tests {
     use crate::por::test_data::ID;
     use crate::por::test_data::INPUT;
     use crate::por::test_data::IV;
+    use crate::por::PIECE_SIZE;
+    use rand::Rng;
 
     #[test]
     fn test() {
@@ -98,5 +104,27 @@ mod tests {
         decode(&mut decoding, &ID, &IV, aes_iterations, 1);
 
         assert_eq!(decoding.to_vec(), INPUT.to_vec());
+    }
+
+    #[test]
+    fn test_random() {
+        let aes_iterations = 256;
+
+        let mut id = [0u8; 16];
+        rand::thread_rng().fill(&mut id[..]);
+
+        let mut input = [0u8; PIECE_SIZE];
+        rand::thread_rng().fill(&mut input[..]);
+
+        let mut iv = [0u8; 16];
+        rand::thread_rng().fill(&mut iv[..]);
+
+        let mut encoding = input;
+        encode(&mut encoding, &id, &iv, aes_iterations, 1);
+
+        let mut decoding = encoding;
+        decode(&mut decoding, &id, &iv, aes_iterations, 1);
+
+        assert_eq!(decoding.to_vec(), input.to_vec());
     }
 }

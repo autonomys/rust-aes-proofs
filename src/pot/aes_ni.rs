@@ -133,6 +133,7 @@ mod tests {
     use crate::pot::test_data::CORRECT_PROOF;
     use crate::pot::test_data::ID;
     use crate::pot::test_data::SEED;
+    use rand::Rng;
 
     #[test]
     fn test() {
@@ -170,6 +171,33 @@ mod tests {
         assert!(!verify_pipelined_4x_parallel(
             &vec![42; verifier_parallelism * BLOCK_SIZE],
             &SEED,
+            &keys,
+            aes_iterations
+        ));
+    }
+
+    #[test]
+    fn test_random() {
+        let aes_iterations = 256;
+        let verifier_parallelism = 16;
+
+        let mut key = [0u8; 16];
+        rand::thread_rng().fill(&mut key[..]);
+        let keys = key_expansion::expand_keys_aes_128_enc(&key);
+
+        let mut seed = [0u8; 16];
+        rand::thread_rng().fill(&mut seed[..]);
+
+        let proof = prove(&seed, &keys, aes_iterations, verifier_parallelism);
+        assert_eq!(proof.len(), verifier_parallelism * BLOCK_SIZE);
+
+        let keys = key_expansion::expand_keys_aes_128_dec(&key);
+
+        assert!(verify_pipelined_4x(&proof, &seed, &keys, aes_iterations));
+
+        assert!(verify_pipelined_4x_parallel(
+            &proof,
+            &seed,
             &keys,
             aes_iterations
         ));

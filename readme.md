@@ -18,6 +18,14 @@ On Ubuntu 18.04+ for Intel GPU they can be installed like this:
 sudo apt-get install gcc ocl-icd-opencl-dev beignet-opencl-icd
 ```
 
+#### Software OpenCL implementation
+It is also possible to use [Oclgrind](https://github.com/jrprice/Oclgrind) to run OpenCL implementation on CPU in software.
+
+On Ubuntu 18.04+ Oclgrind can be installed like this:
+```bash
+sudo apt-get install oclgrind
+```
+
 ### Running tests abd benchmarks
 TL;DR:
 ```bash
