@@ -4,9 +4,9 @@ use criterion::criterion_group;
 use criterion::criterion_main;
 use criterion::Criterion;
 use rust_aes_proofs::aes_low_level::key_expansion;
-use rust_aes_proofs::por::aes_ni;
-use rust_aes_proofs::por::opencl::OpenCLPor;
-use rust_aes_proofs::por::software;
+use rust_aes_proofs::por::opencl::OpenCLPoR;
+use rust_aes_proofs::por::software_bit_slicing;
+use rust_aes_proofs::por::{aes_ni, software_lut};
 use test_data::ID;
 use test_data::IV;
 use test_data::PIECE;
@@ -51,7 +51,43 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         group.finish();
     }
     {
-        let mut group = c.benchmark_group("Software");
+        let mut group = c.benchmark_group("Software (bit slicing)");
+        group.sample_size(100);
+
+        let aes_iterations = 256;
+        let breadth_iterations = 16;
+
+        group.bench_function("PoR-128-encode", |b| {
+            let mut pieces = [PIECE; 8];
+            b.iter(|| {
+                black_box(software_bit_slicing::encode(
+                    &mut pieces,
+                    &ID,
+                    [&IV; 8],
+                    aes_iterations,
+                    breadth_iterations,
+                ))
+            })
+        });
+
+        // Here we use incorrect key, but performance should be identical
+        group.bench_function("PoR-128-decode", |b| {
+            let mut pieces = [PIECE; 8];
+            b.iter(|| {
+                black_box(software_bit_slicing::decode(
+                    &mut pieces,
+                    &ID,
+                    [&IV; 8],
+                    aes_iterations,
+                    breadth_iterations,
+                ))
+            })
+        });
+
+        group.finish();
+    }
+    {
+        let mut group = c.benchmark_group("Software (look-up table)");
         group.sample_size(100);
 
         let aes_iterations = 256;
@@ -60,7 +96,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         group.bench_function("PoR-128-encode", |b| {
             let mut piece = PIECE;
             b.iter(|| {
-                black_box(software::encode(
+                black_box(software_lut::encode(
                     &mut piece,
                     &ID,
                     &IV,
@@ -74,7 +110,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         group.bench_function("PoR-128-decode", |b| {
             let mut piece = PIECE;
             b.iter(|| {
-                black_box(software::decode(
+                black_box(software_lut::decode(
                     &mut piece,
                     &ID,
                     &IV,
@@ -87,7 +123,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         group.finish();
     }
     {
-        let mut codec = OpenCLPor::new().unwrap();
+        let mut codec = OpenCLPoR::new().unwrap();
 
         let keys = key_expansion::expand_keys_aes_128_enc(&ID);
 

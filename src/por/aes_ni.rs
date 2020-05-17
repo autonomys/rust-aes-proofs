@@ -109,6 +109,8 @@ mod tests {
     use crate::por::test_data::ID;
     use crate::por::test_data::INPUT;
     use crate::por::test_data::IV;
+    use crate::por::PIECE_SIZE;
+    use rand::Rng;
 
     #[test]
     fn test() {
@@ -129,5 +131,33 @@ mod tests {
         decode(&mut decoding, &keys, &IV, aes_iterations, 1);
 
         assert_eq!(decoding.to_vec(), INPUT.to_vec());
+    }
+
+    #[test]
+    fn test_random() {
+        let aes_iterations = 256;
+
+        let mut id = [0u8; 16];
+        rand::thread_rng().fill(&mut id[..]);
+
+        let mut input = [0u8; PIECE_SIZE];
+        rand::thread_rng().fill(&mut input[..]);
+
+        let mut iv = [0u8; 16];
+        rand::thread_rng().fill(&mut iv[..]);
+
+        let keys = key_expansion::expand_keys_aes_128_enc(&id);
+
+        let mut encodings = [input; 4];
+        encode(&mut encodings, &keys, [&iv; 4], aes_iterations, 1);
+
+        let keys = key_expansion::expand_keys_aes_128_dec(&id);
+
+        for encoding in encodings.iter() {
+            let mut decoding = *encoding;
+            decode(&mut decoding, &keys, &iv, aes_iterations, 1);
+
+            assert_eq!(decoding.to_vec(), input.to_vec());
+        }
     }
 }
