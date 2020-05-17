@@ -1,4 +1,5 @@
 /// Proof of replication implementation
+#[cfg(target_arch = "x86_64")]
 pub mod aes_ni;
 pub mod opencl;
 pub mod software;
