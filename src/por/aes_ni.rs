@@ -2,12 +2,12 @@ use crate::aes128_load4;
 use crate::aes128_load_keys;
 use crate::aes128_store4;
 use crate::aes_low_level::aes_ni;
+use crate::por::utils;
 use crate::por::Block;
 use crate::por::Piece;
 use crate::por::BLOCK_SIZE;
 use crate::por::PIECE_SIZE;
 use core::arch::x86_64::*;
-use std::convert::TryInto;
 
 /// Pipelined proof of replication encoding with AES-NI
 pub fn encode(
@@ -84,26 +84,12 @@ fn decode_internal(
     let keys_reg = unsafe { aes128_load_keys!(keys) };
 
     for i in (1..(PIECE_SIZE / BLOCK_SIZE / 4)).rev() {
-        let (ends_with_feedback, starts_with_blocks) = piece.split_at_mut(i * BLOCK_SIZE * 4);
-
-        let feedback = ends_with_feedback[ends_with_feedback.len() - BLOCK_SIZE..]
-            .as_ref()
-            .try_into()
-            .unwrap();
-
-        let (blocks, _) = starts_with_blocks.split_at_mut(BLOCK_SIZE * 4);
-
+        let (blocks, feedback) = utils::piece_to_blocks_and_feedback(piece, i, 4);
         decode_4_blocks_internal(keys_reg, blocks, feedback, aes_iterations);
     }
 
-    let (mut first_4_blocks, remainder) = piece.split_at_mut(BLOCK_SIZE * 4);
-    // At this point last block is already decoded, so we can use it as an IV to previous iteration
-    let iv = iv.unwrap_or_else(|| {
-        remainder[(remainder.len() - BLOCK_SIZE)..]
-            .try_into()
-            .unwrap()
-    });
-    decode_4_blocks_internal(keys_reg, &mut first_4_blocks, &iv, aes_iterations);
+    let (first_4_blocks, feedback) = utils::piece_to_first_blocks_and_feedback(piece, iv, 4);
+    decode_4_blocks_internal(keys_reg, first_4_blocks, feedback, aes_iterations);
 }
 
 fn decode_4_blocks_internal(

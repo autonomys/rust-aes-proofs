@@ -63,7 +63,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
                 black_box(software_bit_slicing::encode(
                     &mut pieces,
                     &ID,
-                    [&IV; 8],
+                    [IV; 8],
                     aes_iterations,
                     breadth_iterations,
                 ))

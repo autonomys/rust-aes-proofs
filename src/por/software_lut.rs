@@ -1,6 +1,9 @@
-use crate::por::{Block, Piece, BLOCK_SIZE, PIECE_SIZE};
+use crate::por::utils;
+use crate::por::Block;
+use crate::por::Piece;
+use crate::por::BLOCK_SIZE;
+use crate::por::PIECE_SIZE;
 use aes_frast::aes_core;
-use std::convert::TryInto;
 use std::io::Write;
 
 /// Proof of replication encoding purely in software (using look-up table approach)
@@ -67,26 +70,13 @@ fn decode_internal(piece: &mut Piece, keys: &[u32; 44], iv: Option<&Block>, aes_
     let mut tmp: Block = [0u8; 16];
 
     for i in (1..(PIECE_SIZE / BLOCK_SIZE)).rev() {
-        let (ends_with_feedback, starts_with_block) = piece.split_at_mut(i * BLOCK_SIZE);
+        let (block, feedback) = utils::piece_to_blocks_and_feedback(piece, i, 1);
 
-        let feedback = ends_with_feedback[ends_with_feedback.len() - BLOCK_SIZE..]
-            .as_ref()
-            .try_into()
-            .unwrap();
-
-        let (blocks, _) = starts_with_block.split_at_mut(BLOCK_SIZE);
-
-        decode_block_internal(keys, blocks, feedback, aes_iterations, &mut tmp);
+        decode_block_internal(keys, block, feedback, aes_iterations, &mut tmp);
     }
 
-    let (mut first_block, remainder) = piece.split_at_mut(BLOCK_SIZE);
-    // At this point last block is already decoded, so we can use it as an IV to previous iteration
-    let iv = iv.unwrap_or_else(|| {
-        remainder[(remainder.len() - BLOCK_SIZE)..]
-            .try_into()
-            .unwrap()
-    });
-    decode_block_internal(keys, &mut first_block, &iv, aes_iterations, &mut tmp);
+    let (first_block, feedback) = utils::piece_to_first_blocks_and_feedback(piece, iv, 1);
+    decode_block_internal(keys, first_block, &feedback, aes_iterations, &mut tmp);
 }
 
 fn decode_block_internal(

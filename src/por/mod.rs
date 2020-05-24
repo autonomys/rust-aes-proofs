@@ -6,6 +6,7 @@ pub mod software_bit_slicing;
 pub mod software_lut;
 #[cfg(test)]
 mod test_data;
+mod utils;
 
 pub const BLOCK_SIZE: usize = 16;
 pub const PIECE_SIZE: usize = 4096;
