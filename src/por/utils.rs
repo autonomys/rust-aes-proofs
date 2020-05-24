@@ -4,13 +4,16 @@ use crate::por::BLOCK_SIZE;
 use std::convert::TryInto;
 
 /// Returns (blocks, feedback) tuple given block index in a piece
+/// Handles cases when `number_of_blocks` is not a multiple of `piece.len()` gracefully (by adding
+/// offset from the beginning of the piece)
 pub fn piece_to_blocks_and_feedback(
     piece: &mut Piece,
     index: usize,
     number_of_blocks: usize,
 ) -> (&mut [u8], &Block) {
+    let offset = piece.len() % number_of_blocks;
     let (ends_with_feedback, starts_with_block) =
-        piece.split_at_mut(index * BLOCK_SIZE * number_of_blocks);
+        piece.split_at_mut(offset + index * BLOCK_SIZE * number_of_blocks);
 
     let feedback = ends_with_feedback[ends_with_feedback.len() - BLOCK_SIZE..]
         .as_ref()
