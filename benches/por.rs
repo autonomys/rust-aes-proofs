@@ -9,6 +9,8 @@ use rust_aes_proofs::por::opencl::OpenCLPoR;
 use rust_aes_proofs::por::software_bit_slicing;
 use rust_aes_proofs::por::software_lut;
 use rust_aes_proofs::por::vaes;
+use rust_aes_proofs::utils;
+use rust_aes_proofs::utils::AesImplementation;
 use test_data::ID;
 use test_data::IV;
 use test_data::PIECE;
@@ -174,7 +176,9 @@ pub fn criterion_benchmark(c: &mut Criterion) {
 
         group.finish();
     }
-    {
+    if !utils::aes_implementations_available().contains(&AesImplementation::VAes) {
+        println!("VAES support not available, skipping benchmarks");
+    } else {
         let keys = key_expansion::expand_keys_aes_128_enc(&ID);
 
         let mut group = c.benchmark_group("VAES");

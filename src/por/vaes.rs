@@ -150,10 +150,16 @@ mod tests {
     use crate::por::test_data::INPUT;
     use crate::por::test_data::IV;
     use crate::por::PIECE_SIZE;
+    use crate::utils;
+    use crate::utils::AesImplementation;
     use rand::Rng;
 
     #[test]
     fn test() {
+        if !utils::aes_implementations_available().contains(&AesImplementation::VAes) {
+            println!("VAES support not available, skipping test");
+            return;
+        }
         let aes_iterations = 256;
 
         let keys = key_expansion::expand_keys_aes_128_enc(&ID);
@@ -175,6 +181,10 @@ mod tests {
 
     #[test]
     fn test_breadth_10() {
+        if !utils::aes_implementations_available().contains(&AesImplementation::VAes) {
+            println!("VAES support not available, skipping test");
+            return;
+        }
         let aes_iterations = 256;
 
         let keys = key_expansion::expand_keys_aes_128_enc(&ID);
@@ -196,6 +206,10 @@ mod tests {
 
     #[test]
     fn test_random() {
+        if !utils::aes_implementations_available().contains(&AesImplementation::VAes) {
+            println!("VAES support not available, skipping test");
+            return;
+        }
         let aes_iterations = 256;
 
         let mut id = [0u8; 16];
@@ -224,6 +238,10 @@ mod tests {
 
     #[test]
     fn test_random_breadth_10() {
+        if !utils::aes_implementations_available().contains(&AesImplementation::VAes) {
+            println!("VAES support not available, skipping test");
+            return;
+        }
         let aes_iterations = 256;
 
         let mut id = [0u8; 16];
