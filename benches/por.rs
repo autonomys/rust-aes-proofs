@@ -23,7 +23,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
 
         group.bench_function("PoR-128-encode", |b| {
             let mut pieces = [PIECE; 4];
-            let ivs = [&IV; 4];
+            let ivs = [IV; 4];
             b.iter(|| {
                 black_box(aes_ni::encode(
                     &mut pieces,
