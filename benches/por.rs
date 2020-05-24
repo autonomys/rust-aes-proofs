@@ -99,7 +99,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
                 black_box(software_lut::encode(
                     &mut piece,
                     &ID,
-                    &IV,
+                    IV,
                     aes_iterations,
                     breadth_iterations,
                 ))
