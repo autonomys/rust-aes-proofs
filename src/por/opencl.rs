@@ -1,6 +1,8 @@
 mod utils;
 
-use crate::por::{Block, BLOCK_SIZE, PIECE_SIZE};
+use crate::por::Block;
+use crate::por::BLOCK_SIZE;
+use crate::por::PIECE_SIZE;
 use ocl::{
     core::{
         build_program, create_buffer, create_command_queue, create_context, create_kernel,
@@ -12,7 +14,7 @@ use ocl::{
 };
 use std::ffi::CString;
 
-const AES_OPEN_CL: &str = include_str!("opencl/kernels");
+const AES_OPEN_CL: &str = include_str!("opencl/kernels.cl");
 const ROUND_KEYS_LENGTH_128: usize = 44;
 
 struct CachedBuffer {
@@ -78,7 +80,14 @@ impl OpenCLPoR {
     /// expanded round keys
     ///
     /// Produces ciphertext
-    pub fn encode(&mut self, input: &[u8], ivs: &[Block], keys: &[Block; 11]) -> Result<Vec<u8>> {
+    pub fn encode(
+        &mut self,
+        input: &[u8],
+        ivs: &[Block],
+        keys: &[Block; 11],
+        aes_iterations: u32,
+        breadth_iterations: u32,
+    ) -> Result<Vec<u8>> {
         assert_eq!(input.len() % PIECE_SIZE, 0);
 
         let blocks_count = input.len() / PIECE_SIZE;
@@ -100,6 +109,12 @@ impl OpenCLPoR {
 
         set_kernel_arg(&self.por_128_enc_kernel, 0, ArgVal::mem(&buffer_state))?;
         set_kernel_arg(&self.por_128_enc_kernel, 1, ArgVal::mem(&buffer_ivs))?;
+        set_kernel_arg(&self.por_128_enc_kernel, 3, ArgVal::scalar(&aes_iterations))?;
+        set_kernel_arg(
+            &self.por_128_enc_kernel,
+            4,
+            ArgVal::scalar(&breadth_iterations),
+        )?;
 
         unsafe {
             enqueue_write_buffer(
@@ -179,7 +194,14 @@ impl OpenCLPoR {
     /// expanded round keys
     ///
     /// Produces plaintext
-    pub fn decode(&mut self, input: &[u8], ivs: &[Block], keys: &[Block; 11]) -> Result<Vec<u8>> {
+    pub fn decode(
+        &mut self,
+        input: &[u8],
+        ivs: &[Block],
+        keys: &[Block; 11],
+        aes_iterations: u32,
+        breadth_iterations: u32,
+    ) -> Result<Vec<u8>> {
         assert_eq!(input.len() % PIECE_SIZE, 0);
 
         let blocks_count = input.len() / PIECE_SIZE;
@@ -201,6 +223,12 @@ impl OpenCLPoR {
 
         set_kernel_arg(&self.por_128_dec_kernel, 0, ArgVal::mem(&buffer_state))?;
         set_kernel_arg(&self.por_128_dec_kernel, 1, ArgVal::mem(&buffer_ivs))?;
+        set_kernel_arg(&self.por_128_dec_kernel, 3, ArgVal::scalar(&aes_iterations))?;
+        set_kernel_arg(
+            &self.por_128_dec_kernel,
+            4,
+            ArgVal::scalar(&breadth_iterations),
+        )?;
 
         unsafe {
             enqueue_write_buffer(
@@ -303,18 +331,19 @@ mod tests {
     use super::*;
     use crate::aes_low_level::key_expansion;
     use crate::por::test_data::CORRECT_ENCODING;
+    use crate::por::test_data::CORRECT_ENCODING_BREADTH_10;
     use crate::por::test_data::ID;
     use crate::por::test_data::INPUT;
     use crate::por::test_data::IV;
     use rand::Rng;
 
     #[test]
-    fn test() {
+    fn test_simple() {
         let mut codec = OpenCLPoR::new().unwrap();
 
         let keys = key_expansion::expand_keys_aes_128_enc(&ID);
 
-        let encryption = codec.encode(&INPUT, &[IV], &keys).unwrap();
+        let encryption = codec.encode(&INPUT, &[IV], &keys, 256, 1).unwrap();
         assert_eq!(encryption, CORRECT_ENCODING.to_vec());
 
         let ivs = vec![IV, IV];
@@ -326,6 +355,8 @@ mod tests {
                     .as_ref(),
                 &ivs,
                 &keys,
+                256,
+                1,
             )
             .unwrap();
         assert_eq!(
@@ -339,10 +370,10 @@ mod tests {
 
         let keys = key_expansion::expand_keys_aes_128_dec(&ID);
 
-        let decryption = codec.decode(&encryption, &[IV], &keys).unwrap();
+        let decryption = codec.decode(&encryption, &[IV], &keys, 256, 1).unwrap();
         assert_eq!(decryption, INPUT.to_vec());
 
-        let decryptions = codec.decode(&encryptions, &ivs, &keys).unwrap();
+        let decryptions = codec.decode(&encryptions, &ivs, &keys, 256, 1).unwrap();
         assert_eq!(
             decryptions[PIECE_SIZE..].to_vec(),
             decryptions[..PIECE_SIZE].to_vec(),
@@ -351,7 +382,51 @@ mod tests {
     }
 
     #[test]
-    fn test_random() {
+    fn test_breadth_10() {
+        let mut codec = OpenCLPoR::new().unwrap();
+
+        let keys = key_expansion::expand_keys_aes_128_enc(&ID);
+
+        let encryption = codec.encode(&INPUT, &[IV], &keys, 256, 10).unwrap();
+        assert_eq!(encryption, CORRECT_ENCODING_BREADTH_10.to_vec());
+
+        let ivs = vec![IV, IV];
+        let encryptions = codec
+            .encode(
+                &(0..2)
+                    .flat_map(|_| INPUT.as_ref().to_vec())
+                    .collect::<Vec<u8>>()
+                    .as_ref(),
+                &ivs,
+                &keys,
+                256,
+                10,
+            )
+            .unwrap();
+        assert_eq!(
+            encryptions[PIECE_SIZE..].to_vec(),
+            encryptions[..PIECE_SIZE].to_vec(),
+        );
+        assert_eq!(
+            encryptions[PIECE_SIZE..].to_vec(),
+            CORRECT_ENCODING_BREADTH_10.to_vec(),
+        );
+
+        let keys = key_expansion::expand_keys_aes_128_dec(&ID);
+
+        let decryption = codec.decode(&encryption, &[IV], &keys, 256, 10).unwrap();
+        assert_eq!(decryption, INPUT.to_vec());
+
+        let decryptions = codec.decode(&encryptions, &ivs, &keys, 256, 10).unwrap();
+        assert_eq!(
+            decryptions[PIECE_SIZE..].to_vec(),
+            decryptions[..PIECE_SIZE].to_vec(),
+        );
+        assert_eq!(INPUT.to_vec(), decryptions[PIECE_SIZE..].to_vec());
+    }
+
+    #[test]
+    fn test_random_simple() {
         let mut codec = OpenCLPoR::new().unwrap();
 
         let mut id = [0u8; 16];
@@ -365,7 +440,7 @@ mod tests {
 
         let keys = key_expansion::expand_keys_aes_128_enc(&id);
 
-        let encryption = codec.encode(&input, &[iv], &keys).unwrap();
+        let encryption = codec.encode(&input, &[iv], &keys, 256, 1).unwrap();
 
         let ivs = vec![iv, iv];
         let encryptions = codec
@@ -376,6 +451,8 @@ mod tests {
                     .as_ref(),
                 &ivs,
                 &keys,
+                256,
+                1,
             )
             .unwrap();
 
@@ -385,10 +462,57 @@ mod tests {
 
         let keys = key_expansion::expand_keys_aes_128_dec(&id);
 
-        let decryption = codec.decode(&encryption, &[iv], &keys).unwrap();
+        let decryption = codec.decode(&encryption, &[iv], &keys, 256, 1).unwrap();
         assert_eq!(decryption, input.to_vec());
 
-        let decryptions = codec.decode(&encryptions, &ivs, &keys).unwrap();
+        let decryptions = codec.decode(&encryptions, &ivs, &keys, 256, 1).unwrap();
+
+        for decryption in decryptions.chunks_exact(PIECE_SIZE) {
+            assert_eq!(decryption.to_vec(), input.to_vec(),);
+        }
+    }
+
+    #[test]
+    fn test_random_breadth_10() {
+        let mut codec = OpenCLPoR::new().unwrap();
+
+        let mut id = [0u8; 16];
+        rand::thread_rng().fill(&mut id[..]);
+
+        let mut input = [0u8; PIECE_SIZE];
+        rand::thread_rng().fill(&mut input[..]);
+
+        let mut iv = [0u8; 16];
+        rand::thread_rng().fill(&mut iv[..]);
+
+        let keys = key_expansion::expand_keys_aes_128_enc(&id);
+
+        let encryption = codec.encode(&input, &[iv], &keys, 256, 10).unwrap();
+
+        let ivs = vec![iv, iv];
+        let encryptions = codec
+            .encode(
+                &(0..2)
+                    .flat_map(|_| input.as_ref().to_vec())
+                    .collect::<Vec<u8>>()
+                    .as_ref(),
+                &ivs,
+                &keys,
+                256,
+                10,
+            )
+            .unwrap();
+
+        for single_encryption in encryptions.chunks_exact(PIECE_SIZE) {
+            assert_eq!(single_encryption.to_vec(), encryption.to_vec(),);
+        }
+
+        let keys = key_expansion::expand_keys_aes_128_dec(&id);
+
+        let decryption = codec.decode(&encryption, &[iv], &keys, 256, 10).unwrap();
+        assert_eq!(decryption, input.to_vec());
+
+        let decryptions = codec.decode(&encryptions, &ivs, &keys, 256, 10).unwrap();
 
         for decryption in decryptions.chunks_exact(PIECE_SIZE) {
             assert_eq!(decryption.to_vec(), input.to_vec(),);
