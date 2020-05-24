@@ -21,7 +21,6 @@ macro_rules! aes128_store4 {
     }};
 }
 
-#[macro_export]
 macro_rules! aes128_xor4 {
     ($what:expr, $with:expr) => {{
         use core::arch::x86_64::*;
@@ -33,7 +32,6 @@ macro_rules! aes128_xor4 {
     }};
 }
 
-#[macro_export]
 macro_rules! aes128_xor4x4 {
     ($what:expr, $with:expr) => {{
         use core::arch::x86_64::*;
@@ -45,7 +43,6 @@ macro_rules! aes128_xor4x4 {
     }};
 }
 
-#[macro_export]
 macro_rules! aes128_encode4 {
     ($target:expr, $key:expr) => {{
         use core::arch::x86_64::*;
@@ -57,7 +54,6 @@ macro_rules! aes128_encode4 {
     }};
 }
 
-#[macro_export]
 macro_rules! aes128_encode4_last {
     ($target:expr, $key:expr) => {{
         use core::arch::x86_64::*;
@@ -69,7 +65,6 @@ macro_rules! aes128_encode4_last {
     }};
 }
 
-#[macro_export]
 macro_rules! aes128_decode4 {
     ($target:expr, $key:expr) => {{
         use core::arch::x86_64::*;
@@ -81,7 +76,6 @@ macro_rules! aes128_decode4 {
     }};
 }
 
-#[macro_export]
 macro_rules! aes128_decode4_last {
     ($target:expr, $key:expr) => {{
         use core::arch::x86_64::*;
@@ -140,7 +134,6 @@ macro_rules! aes128_load_keys {
     }};
 }
 
-#[macro_export]
 macro_rules! compare_eq4 {
     ($what:expr, $with:expr) => {{
         use core::arch::x86_64::*;
