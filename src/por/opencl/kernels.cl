@@ -544,19 +544,19 @@ inline void aes_128_dec(
     (*state)[15] = SINV[(size_t)wb0 & 0xFF] ^ (uchar)keys[3];
 }
 
-__constant uint rounds = 256;
 __constant uint blocks_per_piece = 4096 / 16;
 
-inline void por_128_enc_inner(
+inline uchar16 por_128_enc_inner(
 	__global uchar16* state,
 	const uchar16 iv,
-	__constant const uint* keys
+	__constant const uint* keys,
+	const uint aes_iterations
 ) {
     // XOR the first block with IV
     state[0] ^= iv;
 
     // Apply Rijndael cipher to the first block necessary number or times
-    for (uint r = 0; r < rounds; ++r) {
+    for (uint r = 0; r < aes_iterations; ++r) {
         aes_128_enc(state, keys);
     }
 
@@ -565,30 +565,36 @@ inline void por_128_enc_inner(
         state[block] ^= state[block - 1];
 
         // Apply Rijndael cipher to each block necessary number or times
-        for (uint r = 0; r < rounds; ++r) {
+        for (uint r = 0; r < aes_iterations; ++r) {
             aes_128_enc(&state[block], keys);
         }
     }
+
+    return state[blocks_per_piece - 1];
 }
 
 __kernel void por_128_enc(
 	__global uchar16* state,
-	__constant const uchar16* iv,
-	__constant const uint* keys
+	__global uchar16* iv,
+	__constant const uint* keys,
+	const uint aes_iterations,
+	const uint breadth_iterations
 ) {
     uint gid = get_global_id(0);
 
-    por_128_enc_inner(&state[gid * blocks_per_piece], iv[gid], keys);
+    for (uint i = 0; i < breadth_iterations; ++i) {
+        iv[gid] = por_128_enc_inner(&state[gid * blocks_per_piece], iv[gid], keys, aes_iterations);
+    }
 }
 
 inline void por_128_dec_inner(
 	__global uchar16* state,
-	const uchar16 iv,
-	__constant const uint* keys
+	__constant const uint* keys,
+	const uint aes_iterations
 ) {
     for (uint block = blocks_per_piece - 1; block > 0; --block) {
         // Apply Rijndael decipher to each block necessary number or times
-        for (uint r = 0; r < rounds; ++r) {
+        for (uint r = 0; r < aes_iterations; ++r) {
             aes_128_dec(&state[block], keys);
         }
 
@@ -597,7 +603,32 @@ inline void por_128_dec_inner(
     }
 
     // Apply Rijndael decipher to the first block necessary number or times
-    for (uint r = 0; r < rounds; ++r) {
+    for (uint r = 0; r < aes_iterations; ++r) {
+        aes_128_dec(state, keys);
+    }
+
+    // XOR the first block with last block, which is decoded at this point
+    state[0] ^= state[blocks_per_piece - 1];
+}
+
+inline void por_128_dec_inner_last(
+	__global uchar16* state,
+	const uchar16 iv,
+	__constant const uint* keys,
+	const uint aes_iterations
+) {
+    for (uint block = blocks_per_piece - 1; block > 0; --block) {
+        // Apply Rijndael decipher to each block necessary number or times
+        for (uint r = 0; r < aes_iterations; ++r) {
+            aes_128_dec(&state[block], keys);
+        }
+
+        // XOR feedback into next current block
+        state[block] ^= state[block - 1];
+    }
+
+    // Apply Rijndael decipher to the first block necessary number or times
+    for (uint r = 0; r < aes_iterations; ++r) {
         aes_128_dec(state, keys);
     }
 
@@ -607,10 +638,16 @@ inline void por_128_dec_inner(
 
 __kernel void por_128_dec(
 	__global uchar16* state,
-	__constant const uchar16* iv,
-	__constant const uint* keys
+	__global uchar16* iv,
+	__constant const uint* keys,
+    const uint aes_iterations,
+    const uint breadth_iterations
 ) {
     uint gid = get_global_id(0);
 
-    por_128_dec_inner(&state[gid * blocks_per_piece], iv[gid], keys);
+    for (uint i = 1; i < breadth_iterations; ++i) {
+        por_128_dec_inner(&state[gid * blocks_per_piece], keys, aes_iterations);
+    }
+
+    por_128_dec_inner_last(&state[gid * blocks_per_piece], iv[gid], keys, aes_iterations);
 }

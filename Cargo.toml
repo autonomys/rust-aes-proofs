@@ -1,7 +1,7 @@
 [package]
 name = "rust-aes-proofs"
 description = "Various AES-based Proof-of-Replication and Proof-of-Time implementations and benchmarks"
-version = "0.1.0"
+version = "0.2.0"
 authors = [
     "Jeremiah Wagstaff <jeremiah.wagstaff@gmail.com>",
     "Nazar Mokrynskyi <nazar@mokrynskyi.com>"
@@ -23,6 +23,9 @@ rayon = "1.3.0"
 [dev-dependencies]
 criterion = "0.3.2"
 rand = "0.7.3"
+
+[build-dependencies]
+cc = "1.0.54"
 
 [[bench]]
 name = "pot"
