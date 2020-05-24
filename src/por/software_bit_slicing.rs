@@ -39,7 +39,7 @@ pub fn decode(
     // TODO: This should probably be made external, otherwise using the same key for frequent calls
     //  will have severe performance hit
     let cipher = Aes128::new(GenericArray::from_slice(key));
-    for _ in 0..(breadth_iterations - 1) {
+    for _ in 1..breadth_iterations {
         decode_internal(pieces, &cipher, None, aes_iterations);
     }
 

@@ -35,7 +35,7 @@ pub fn decode(
     //  will have severe performance hit
     let mut keys = [0u32; 44];
     aes_core::setkey_dec_k128(key, &mut keys);
-    for _ in 0..(breadth_iterations - 1) {
+    for _ in 1..breadth_iterations {
         decode_internal(piece, &keys, None, aes_iterations);
     }
 
