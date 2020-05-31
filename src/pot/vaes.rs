@@ -73,6 +73,7 @@ pub fn verify(proof: &[u8], seed: &Block, keys: &[Block; 11], aes_iterations: us
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::aes_low_level::aes_ni;
     use crate::aes_low_level::software;
     use crate::pot::test_data::CORRECT_PROOF_12;
     use crate::pot::test_data::ID;
@@ -87,11 +88,11 @@ mod tests {
             println!("VAES support not available, skipping test");
             return;
         }
-        let aes_iterations = 256;
+        let aes_iterations = 288;
         let verifier_parallelism = 12;
-        let keys = software::expand_keys_aes_128_enc(&ID);
+        let (keys_enc, _) = aes_ni::expand(&ID);
 
-        let proof = prove(&SEED, &keys, aes_iterations, verifier_parallelism);
+        let proof = prove(&SEED, keys_enc, aes_iterations, verifier_parallelism);
         assert_eq!(proof.len(), verifier_parallelism * BLOCK_SIZE);
         assert_eq!(proof, CORRECT_PROOF_12.to_vec());
 
@@ -109,17 +110,22 @@ mod tests {
 
     #[test]
     fn test_random() {
+        if !utils::aes_implementations_available().contains(&AesImplementation::VAes) {
+            println!("VAES support not available, skipping test");
+            return;
+        }
+        let aes_iterations = 288;
         let aes_iterations = 256;
         let verifier_parallelism = 12;
 
         let mut key = [0u8; 16];
         rand::thread_rng().fill(&mut key[..]);
-        let keys = software::expand_keys_aes_128_enc(&key);
+        let (keys_enc, _) = aes_ni::expand(&ID);
 
         let mut seed = [0u8; 16];
         rand::thread_rng().fill(&mut seed[..]);
 
-        let proof = prove(&seed, &keys, aes_iterations, verifier_parallelism);
+        let proof = prove(&seed, keys_enc, aes_iterations, verifier_parallelism);
         assert_eq!(proof.len(), verifier_parallelism * BLOCK_SIZE);
 
         let keys = software::expand_keys_aes_128_dec(&key);
