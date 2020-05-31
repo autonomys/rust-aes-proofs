@@ -7,8 +7,10 @@ use rust_aes_proofs::por::aes_ni::AesNi;
 use rust_aes_proofs::por::aes_ni::AesNiKeys;
 use rust_aes_proofs::por::opencl::OpenCL;
 use rust_aes_proofs::por::opencl::OpenCLKeys;
-use rust_aes_proofs::por::software_bit_slicing;
-use rust_aes_proofs::por::software_lut;
+use rust_aes_proofs::por::software_bit_slicing::SoftwareBitSlicing;
+use rust_aes_proofs::por::software_bit_slicing::SoftwareBitSlicingKeys;
+use rust_aes_proofs::por::software_lut::SoftwareLuT;
+use rust_aes_proofs::por::software_lut::SoftwareLuTKeys;
 use rust_aes_proofs::por::vaes::VAes;
 use rust_aes_proofs::por::vaes::VAesKeys;
 use rust_aes_proofs::utils;
@@ -60,6 +62,9 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         group.finish();
     }
     {
+        let keys = SoftwareBitSlicingKeys::new(&ID);
+        let por = SoftwareBitSlicing::new();
+
         let mut group = c.benchmark_group("Software (bit slicing)");
         group.sample_size(10);
 
@@ -70,9 +75,9 @@ pub fn criterion_benchmark(c: &mut Criterion) {
             let mut pieces = [PIECE; 8];
             b.iter(|| {
                 for _ in 0..10 {
-                    software_bit_slicing::encode(
+                    por.encode(
                         &mut pieces,
-                        &ID,
+                        &keys,
                         [IV; 8],
                         aes_iterations,
                         breadth_iterations,
@@ -86,9 +91,9 @@ pub fn criterion_benchmark(c: &mut Criterion) {
             let mut pieces = [PIECE; 8];
             b.iter(|| {
                 for _ in 0..10 {
-                    software_bit_slicing::decode(
+                    por.decode(
                         &mut pieces,
-                        &ID,
+                        &keys,
                         [&IV; 8],
                         aes_iterations,
                         breadth_iterations,
@@ -100,6 +105,9 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         group.finish();
     }
     {
+        let keys = SoftwareLuTKeys::new(&ID);
+        let por = SoftwareLuT::new();
+
         let mut group = c.benchmark_group("Software (look-up table)");
         group.sample_size(10);
 
@@ -110,7 +118,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
             let mut piece = PIECE;
             b.iter(|| {
                 for _ in 0..10 {
-                    software_lut::encode(&mut piece, &ID, IV, aes_iterations, breadth_iterations);
+                    por.encode(&mut piece, &keys, IV, aes_iterations, breadth_iterations);
                 }
             })
         });
@@ -120,7 +128,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
             let mut piece = PIECE;
             b.iter(|| {
                 for _ in 0..10 {
-                    software_lut::decode(&mut piece, &ID, &IV, aes_iterations, breadth_iterations);
+                    por.decode(&mut piece, &keys, &IV, aes_iterations, breadth_iterations);
                 }
             })
         });
