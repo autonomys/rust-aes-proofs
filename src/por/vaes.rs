@@ -162,7 +162,7 @@ fn decode_4_blocks_internal(
         .write_all(&blocks[..(blocks.len() - BLOCK_SIZE)])
         .unwrap();
 
-    vaes::por_decode_pipelined_x12_low_level(keys, blocks, &feedbacks, aes_iterations);
+    vaes::por_decode_x4_low_level(keys, blocks, &feedbacks, aes_iterations);
 }
 
 #[cfg(test)]

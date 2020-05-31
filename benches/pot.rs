@@ -4,17 +4,19 @@ use crate::test_data::SEED;
 use criterion::criterion_group;
 use criterion::criterion_main;
 use criterion::Criterion;
-use rust_aes_proofs::aes_low_level::aes_ni as low_level_aes_ni;
-use rust_aes_proofs::aes_low_level::software;
-use rust_aes_proofs::pot::aes_ni;
-use rust_aes_proofs::pot::vaes;
+use rust_aes_proofs::pot::aes_ni::AesNi;
+use rust_aes_proofs::pot::aes_ni::AesNiKeys;
+use rust_aes_proofs::pot::vaes::VAes;
+use rust_aes_proofs::pot::vaes::VAesKeys;
 use rust_aes_proofs::utils;
 use rust_aes_proofs::utils::AesImplementation;
 
 pub fn criterion_benchmark(c: &mut Criterion) {
     {
+        let keys = AesNiKeys::new(&ID);
+        let pot = AesNi::new();
+
         let base_aes_iterations = 3_000_000;
-        let (prove_keys, verify_keys) = low_level_aes_ni::expand(&ID);
 
         let mut group = c.benchmark_group("AES-NI");
         group.sample_size(10);
@@ -35,12 +37,12 @@ pub fn criterion_benchmark(c: &mut Criterion) {
                 ),
                 |b| {
                     b.iter(|| {
-                        aes_ni::prove(&SEED, prove_keys, aes_iterations, verifier_parallelism);
+                        pot.prove(&SEED, &keys, aes_iterations, verifier_parallelism);
                     })
                 },
             );
 
-            let proof = aes_ni::prove(&SEED, prove_keys, aes_iterations, verifier_parallelism);
+            let proof = pot.prove(&SEED, &keys, aes_iterations, verifier_parallelism);
 
             group.bench_function(
                 format!(
@@ -49,7 +51,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
                 ),
                 |b| {
                     b.iter(|| {
-                        aes_ni::verify(&proof, &SEED, verify_keys, aes_iterations);
+                        pot.verify(&proof, &SEED, &keys, aes_iterations);
                     })
                 },
             );
@@ -61,7 +63,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
                 ),
                 |b| {
                     b.iter(|| {
-                        aes_ni::verify_parallel(&proof, &SEED, verify_keys, aes_iterations);
+                        pot.verify_parallel(&proof, &SEED, &keys, aes_iterations);
                     })
                 },
             );
@@ -72,8 +74,10 @@ pub fn criterion_benchmark(c: &mut Criterion) {
     if !utils::aes_implementations_available().contains(&AesImplementation::VAes) {
         println!("VAES support not available, skipping benchmarks");
     } else {
+        let keys = VAesKeys::new(&ID);
+        let pot = VAes::new();
+
         let base_aes_iterations = 3_000_000;
-        let (prove_keys, _) = low_level_aes_ni::expand(&ID);
 
         let mut group = c.benchmark_group("VAES");
         group.sample_size(10);
@@ -94,13 +98,12 @@ pub fn criterion_benchmark(c: &mut Criterion) {
                 ),
                 |b| {
                     b.iter(|| {
-                        vaes::prove(&SEED, prove_keys, aes_iterations, verifier_parallelism);
+                        pot.prove(&SEED, &keys, aes_iterations, verifier_parallelism);
                     })
                 },
             );
 
-            let proof = vaes::prove(&SEED, prove_keys, aes_iterations, verifier_parallelism);
-            let verify_keys = software::expand_keys_aes_128_dec(&ID);
+            let proof = pot.prove(&SEED, &keys, aes_iterations, verifier_parallelism);
 
             group.bench_function(
                 format!(
@@ -109,7 +112,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
                 ),
                 |b| {
                     b.iter(|| {
-                        vaes::verify(&proof, &SEED, &verify_keys, aes_iterations);
+                        pot.verify(&proof, &SEED, &keys, aes_iterations);
                     })
                 },
             );
