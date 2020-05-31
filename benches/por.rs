@@ -5,8 +5,6 @@ use criterion::Criterion;
 use rayon::prelude::*;
 use rust_aes_proofs::por::aes_ni::AesNi;
 use rust_aes_proofs::por::aes_ni::AesNiKeys;
-use rust_aes_proofs::por::opencl::OpenCL;
-use rust_aes_proofs::por::opencl::OpenCLKeys;
 use rust_aes_proofs::por::software_bit_slicing::SoftwareBitSlicing;
 use rust_aes_proofs::por::software_bit_slicing::SoftwareBitSlicingKeys;
 use rust_aes_proofs::por::software_lut::SoftwareLuT;
@@ -135,7 +133,11 @@ pub fn criterion_benchmark(c: &mut Criterion) {
 
         group.finish();
     }
+    #[cfg(feature = "opencl")]
     {
+        use rust_aes_proofs::por::opencl::OpenCL;
+        use rust_aes_proofs::por::opencl::OpenCLKeys;
+
         let keys = OpenCLKeys::new(&ID);
         let mut por = OpenCL::new().unwrap();
 
