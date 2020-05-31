@@ -114,10 +114,10 @@ impl AesNi {
     ) -> bool {
         let pipelining_parallelism = 4;
 
-        assert_eq!(proof.len() % BLOCK_SIZE, 0);
+        assert!(proof.len() % BLOCK_SIZE == 0);
         let verifier_parallelism = proof.len() / BLOCK_SIZE;
-        assert_eq!(verifier_parallelism % pipelining_parallelism, 0);
-        assert_eq!(aes_iterations % verifier_parallelism, 0);
+        assert!(verifier_parallelism % pipelining_parallelism == 0);
+        assert!(aes_iterations % verifier_parallelism == 0);
 
         let inner_iterations = aes_iterations / verifier_parallelism;
 

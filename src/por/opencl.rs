@@ -102,10 +102,10 @@ impl OpenCL {
         aes_iterations: u32,
         breadth_iterations: u32,
     ) -> Result<Vec<u8>> {
-        assert_eq!(input.len() % PIECE_SIZE, 0);
+        assert!(input.len() % PIECE_SIZE == 0);
 
         let blocks_count = input.len() / PIECE_SIZE;
-        assert_eq!(blocks_count, ivs.len());
+        assert!(blocks_count == ivs.len());
 
         let buffer_state = Self::validate_or_allocate_buffer::<Uchar16>(
             &self.context,
@@ -216,10 +216,10 @@ impl OpenCL {
         aes_iterations: u32,
         breadth_iterations: u32,
     ) -> Result<Vec<u8>> {
-        assert_eq!(input.len() % PIECE_SIZE, 0);
+        assert!(input.len() % PIECE_SIZE == 0);
 
         let blocks_count = input.len() / PIECE_SIZE;
-        assert_eq!(blocks_count, ivs.len());
+        assert!(blocks_count == ivs.len());
 
         let buffer_state = Self::validate_or_allocate_buffer::<Uchar16>(
             &self.context,

@@ -10,9 +10,8 @@ pub fn por_encode_pipelined_x12_low_level(
     aes_iterations: usize,
 ) {
     for block in blocks.iter() {
-        assert_eq!(
-            block.len(),
-            BLOCK_SIZE,
+        assert!(
+            block.len() == BLOCK_SIZE,
             "Block length must be {} bytes",
             BLOCK_SIZE,
         );
@@ -101,14 +100,12 @@ pub fn por_decode_pipelined_x12_low_level(
     feedbacks: &[u8],
     aes_iterations: usize,
 ) {
-    assert_eq!(
-        blocks.len(),
-        BLOCK_SIZE * 12,
+    assert!(
+        blocks.len() == BLOCK_SIZE * 12,
         "Blocks length must be exactly 12 blocks",
     );
-    assert_eq!(
-        feedbacks.len(),
-        BLOCK_SIZE * 12,
+    assert!(
+        feedbacks.len() == BLOCK_SIZE * 12,
         "Feedbacks length must be exactly 12 blocks",
     );
 
@@ -128,14 +125,12 @@ pub fn por_decode_x4_low_level(
     feedbacks: &[u8],
     aes_iterations: usize,
 ) {
-    assert_eq!(
-        blocks.len(),
-        BLOCK_SIZE * 4,
+    assert!(
+        blocks.len() == BLOCK_SIZE * 4,
         "Blocks length must be exactly 4 blocks",
     );
-    assert_eq!(
-        feedbacks.len(),
-        BLOCK_SIZE * 4,
+    assert!(
+        feedbacks.len() == BLOCK_SIZE * 4,
         "Feedbacks length must be exactly 4 blocks",
     );
 
