@@ -1,4 +1,5 @@
-use crate::aes_low_level::software;
+use crate::aes_low_level::aes_ni;
+use crate::aes_low_level::aes_ni::ExpandedKeys;
 use crate::aes_low_level::vaes;
 use crate::por::utils;
 use crate::Block;
@@ -9,14 +10,13 @@ use std::io::Write;
 
 // TODO: This should use keys expanded using AES-NI
 pub struct VAesKeys {
-    keys_enc: [Block; 11],
-    keys_dec: [Block; 11],
+    keys_enc: ExpandedKeys,
+    keys_dec: ExpandedKeys,
 }
 
 impl VAesKeys {
     pub fn new(id: &Block) -> Self {
-        let keys_enc = software::expand_keys_aes_128_enc(&id);
-        let keys_dec = software::expand_keys_aes_128_dec(&id);
+        let (keys_enc, keys_dec) = aes_ni::expand(id);
         Self { keys_enc, keys_dec }
     }
 }
@@ -62,7 +62,7 @@ impl VAes {
 /// Returns iv for the next round
 fn encode_internal(
     pieces: &mut [Piece; 12],
-    keys: &[Block; 11],
+    keys: &ExpandedKeys,
     mut ivs: [Block; 12],
     aes_iterations: usize,
 ) -> [Block; 12] {
@@ -118,7 +118,7 @@ fn encode_internal(
 
 fn decode_internal(
     piece: &mut Piece,
-    keys: &[Block; 11],
+    keys: &ExpandedKeys,
     iv: Option<&Block>,
     aes_iterations: usize,
 ) {
@@ -134,7 +134,7 @@ fn decode_internal(
 }
 
 fn decode_12_blocks_internal(
-    keys: &[Block; 11],
+    keys: &ExpandedKeys,
     blocks: &mut [u8],
     feedback: &Block,
     aes_iterations: usize,
@@ -150,7 +150,7 @@ fn decode_12_blocks_internal(
 }
 
 fn decode_4_blocks_internal(
-    keys: &[Block; 11],
+    keys: &ExpandedKeys,
     blocks: &mut [u8],
     feedback: &Block,
     aes_iterations: usize,

@@ -11,7 +11,8 @@ use rayon::prelude::*;
 
 pub struct AesNiKeys {
     keys_enc: ExpandedKeys,
-    keys_dec: ExpandedKeys,
+    // Exposing this field is a hack to avoid duplicated key derivation in VAES code
+    pub(super) keys_dec: ExpandedKeys,
 }
 
 impl AesNiKeys {

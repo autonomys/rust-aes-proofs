@@ -1,4 +1,3 @@
-use crate::aes_low_level::software;
 use crate::aes_low_level::vaes;
 use crate::pot::aes_ni::AesNi;
 use crate::pot::aes_ni::AesNiKeys;
@@ -9,15 +8,13 @@ use crate::BLOCK_SIZE;
 
 // TODO: This should use keys expanded using AES-NI
 pub struct VAesKeys {
-    keys_enc: AesNiKeys,
-    keys_dec: [Block; 11],
+    aes_ni: AesNiKeys,
 }
 
 impl VAesKeys {
     pub fn new(id: &Block) -> Self {
-        let keys_enc = AesNiKeys::new(id);
-        let keys_dec = software::expand_keys_aes_128_dec(&id);
-        Self { keys_enc, keys_dec }
+        let aes_ni = AesNiKeys::new(id);
+        Self { aes_ni }
     }
 }
 
@@ -39,7 +36,7 @@ impl VAes {
         verifier_parallelism: usize,
     ) -> Vec<u8> {
         self.aes_ni
-            .prove(seed, &keys.keys_enc, aes_iterations, verifier_parallelism)
+            .prove(seed, &keys.aes_ni, aes_iterations, verifier_parallelism)
     }
 
     /// Arbitrary length proof-of-time verification using pipelined VAES (proof must be a multiple of
@@ -75,7 +72,7 @@ impl VAes {
                 previous = &blocks[(blocks.len() - BLOCK_SIZE)..];
 
                 vaes::pot_verify_pipelined_x12_low_level(
-                    &keys.keys_dec,
+                    &keys.aes_ni.keys_dec,
                     expected_first_block,
                     blocks,
                     inner_iterations,
@@ -95,7 +92,7 @@ impl VAes {
                 previous = &blocks[(blocks.len() - BLOCK_SIZE)..];
 
                 vaes::pot_verify_pipelined_x8_low_level(
-                    &keys.keys_dec,
+                    &keys.aes_ni.keys_dec,
                     expected_first_block,
                     blocks,
                     inner_iterations,
@@ -114,7 +111,7 @@ impl VAes {
                 previous = &blocks[(blocks.len() - BLOCK_SIZE)..];
 
                 vaes::pot_verify_x4_low_level(
-                    &keys.keys_dec,
+                    &keys.aes_ni.keys_dec,
                     expected_first_block,
                     blocks,
                     inner_iterations,
@@ -127,7 +124,6 @@ impl VAes {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::aes_low_level::aes_ni;
     use crate::pot::test_data::CORRECT_PROOF_12;
     use crate::pot::test_data::ID;
     use crate::pot::test_data::SEED;

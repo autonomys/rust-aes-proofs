@@ -8,24 +8,24 @@ void por_encode_pipelined_x12_low_level(
   const unsigned char* feedbacks_0,
   const unsigned char* feedbacks_1,
   const unsigned char* feedbacks_2,
-  const unsigned char* keys,
+  const __m128i* keys,
   size_t aes_iterations
 ) {
     __m512i blocks_0_reg = _mm512_loadu_si512((__m512i*)(&blocks_0));
     __m512i blocks_1_reg = _mm512_loadu_si512((__m512i*)(&blocks_1));
     __m512i blocks_2_reg = _mm512_loadu_si512((__m512i*)(&blocks_2));
 
-    __m512i key_0_reg = _mm512_broadcast_i32x4(_mm_loadu_si128((__m128i*)(&keys[16 * 0])));
-    __m512i key_1_reg = _mm512_broadcast_i32x4(_mm_loadu_si128((__m128i*)(&keys[16 * 1])));
-    __m512i key_2_reg = _mm512_broadcast_i32x4(_mm_loadu_si128((__m128i*)(&keys[16 * 2])));
-    __m512i key_3_reg = _mm512_broadcast_i32x4(_mm_loadu_si128((__m128i*)(&keys[16 * 3])));
-    __m512i key_4_reg = _mm512_broadcast_i32x4(_mm_loadu_si128((__m128i*)(&keys[16 * 4])));
-    __m512i key_5_reg = _mm512_broadcast_i32x4(_mm_loadu_si128((__m128i*)(&keys[16 * 5])));
-    __m512i key_6_reg = _mm512_broadcast_i32x4(_mm_loadu_si128((__m128i*)(&keys[16 * 6])));
-    __m512i key_7_reg = _mm512_broadcast_i32x4(_mm_loadu_si128((__m128i*)(&keys[16 * 7])));
-    __m512i key_8_reg = _mm512_broadcast_i32x4(_mm_loadu_si128((__m128i*)(&keys[16 * 8])));
-    __m512i key_9_reg = _mm512_broadcast_i32x4(_mm_loadu_si128((__m128i*)(&keys[16 * 9])));
-    __m512i key_10_reg = _mm512_broadcast_i32x4(_mm_loadu_si128((__m128i*)(&keys[16 * 10])));
+    __m512i key_0_reg = _mm512_broadcast_i32x4(_mm_loadu_si128(keys + 0));
+    __m512i key_1_reg = _mm512_broadcast_i32x4(_mm_loadu_si128(keys + 1));
+    __m512i key_2_reg = _mm512_broadcast_i32x4(_mm_loadu_si128(keys + 2));
+    __m512i key_3_reg = _mm512_broadcast_i32x4(_mm_loadu_si128(keys + 3));
+    __m512i key_4_reg = _mm512_broadcast_i32x4(_mm_loadu_si128(keys + 4));
+    __m512i key_5_reg = _mm512_broadcast_i32x4(_mm_loadu_si128(keys + 5));
+    __m512i key_6_reg = _mm512_broadcast_i32x4(_mm_loadu_si128(keys + 6));
+    __m512i key_7_reg = _mm512_broadcast_i32x4(_mm_loadu_si128(keys + 7));
+    __m512i key_8_reg = _mm512_broadcast_i32x4(_mm_loadu_si128(keys + 8));
+    __m512i key_9_reg = _mm512_broadcast_i32x4(_mm_loadu_si128(keys + 9));
+    __m512i key_10_reg = _mm512_broadcast_i32x4(_mm_loadu_si128(keys + 10));
 
     {
         __m512i feedbacks_0_reg = _mm512_loadu_si512((__m512i*)(&feedbacks_0));
@@ -92,24 +92,24 @@ __attribute__((target("aes,avx512f,vaes")))
 void por_decode_pipelined_x12_low_level(
   unsigned char* blocks,
   const unsigned char* feedbacks,
-  const unsigned char* keys,
+  const __m128i* keys,
   size_t aes_iterations
 ) {
     __m512i blocks_0_reg = _mm512_loadu_si512((__m512i*)(&blocks[16 * 4 * 0]));
     __m512i blocks_1_reg = _mm512_loadu_si512((__m512i*)(&blocks[16 * 4 * 1]));
     __m512i blocks_2_reg = _mm512_loadu_si512((__m512i*)(&blocks[16 * 4 * 2]));
 
-    __m512i key_0_reg = _mm512_broadcast_i32x4(_mm_loadu_si128((__m128i*)(&keys[16 * 0])));
-    __m512i key_1_reg = _mm512_broadcast_i32x4(_mm_loadu_si128((__m128i*)(&keys[16 * 1])));
-    __m512i key_2_reg = _mm512_broadcast_i32x4(_mm_loadu_si128((__m128i*)(&keys[16 * 2])));
-    __m512i key_3_reg = _mm512_broadcast_i32x4(_mm_loadu_si128((__m128i*)(&keys[16 * 3])));
-    __m512i key_4_reg = _mm512_broadcast_i32x4(_mm_loadu_si128((__m128i*)(&keys[16 * 4])));
-    __m512i key_5_reg = _mm512_broadcast_i32x4(_mm_loadu_si128((__m128i*)(&keys[16 * 5])));
-    __m512i key_6_reg = _mm512_broadcast_i32x4(_mm_loadu_si128((__m128i*)(&keys[16 * 6])));
-    __m512i key_7_reg = _mm512_broadcast_i32x4(_mm_loadu_si128((__m128i*)(&keys[16 * 7])));
-    __m512i key_8_reg = _mm512_broadcast_i32x4(_mm_loadu_si128((__m128i*)(&keys[16 * 8])));
-    __m512i key_9_reg = _mm512_broadcast_i32x4(_mm_loadu_si128((__m128i*)(&keys[16 * 9])));
-    __m512i key_10_reg = _mm512_broadcast_i32x4(_mm_loadu_si128((__m128i*)(&keys[16 * 10])));
+    __m512i key_0_reg = _mm512_broadcast_i32x4(_mm_loadu_si128(keys + 0));
+    __m512i key_1_reg = _mm512_broadcast_i32x4(_mm_loadu_si128(keys + 1));
+    __m512i key_2_reg = _mm512_broadcast_i32x4(_mm_loadu_si128(keys + 2));
+    __m512i key_3_reg = _mm512_broadcast_i32x4(_mm_loadu_si128(keys + 3));
+    __m512i key_4_reg = _mm512_broadcast_i32x4(_mm_loadu_si128(keys + 4));
+    __m512i key_5_reg = _mm512_broadcast_i32x4(_mm_loadu_si128(keys + 5));
+    __m512i key_6_reg = _mm512_broadcast_i32x4(_mm_loadu_si128(keys + 6));
+    __m512i key_7_reg = _mm512_broadcast_i32x4(_mm_loadu_si128(keys + 7));
+    __m512i key_8_reg = _mm512_broadcast_i32x4(_mm_loadu_si128(keys + 8));
+    __m512i key_9_reg = _mm512_broadcast_i32x4(_mm_loadu_si128(keys + 9));
+    __m512i key_10_reg = _mm512_broadcast_i32x4(_mm_loadu_si128(keys + 10));
 
     for (size_t i = 0; i < aes_iterations; ++i) {
         blocks_0_reg = _mm512_xor_si512(blocks_0_reg, key_10_reg);
@@ -176,22 +176,22 @@ __attribute__((target("aes,avx512f,vaes")))
 void por_decode_x4_low_level(
   unsigned char* blocks,
   const unsigned char* feedbacks,
-  const unsigned char* keys,
+  const __m128i* keys,
   size_t aes_iterations
 ) {
     __m512i blocks_reg = _mm512_loadu_si512((__m512i*)blocks);
 
-    __m512i key_0_reg = _mm512_broadcast_i32x4(_mm_loadu_si128((__m128i*)(&keys[16 * 0])));
-    __m512i key_1_reg = _mm512_broadcast_i32x4(_mm_loadu_si128((__m128i*)(&keys[16 * 1])));
-    __m512i key_2_reg = _mm512_broadcast_i32x4(_mm_loadu_si128((__m128i*)(&keys[16 * 2])));
-    __m512i key_3_reg = _mm512_broadcast_i32x4(_mm_loadu_si128((__m128i*)(&keys[16 * 3])));
-    __m512i key_4_reg = _mm512_broadcast_i32x4(_mm_loadu_si128((__m128i*)(&keys[16 * 4])));
-    __m512i key_5_reg = _mm512_broadcast_i32x4(_mm_loadu_si128((__m128i*)(&keys[16 * 5])));
-    __m512i key_6_reg = _mm512_broadcast_i32x4(_mm_loadu_si128((__m128i*)(&keys[16 * 6])));
-    __m512i key_7_reg = _mm512_broadcast_i32x4(_mm_loadu_si128((__m128i*)(&keys[16 * 7])));
-    __m512i key_8_reg = _mm512_broadcast_i32x4(_mm_loadu_si128((__m128i*)(&keys[16 * 8])));
-    __m512i key_9_reg = _mm512_broadcast_i32x4(_mm_loadu_si128((__m128i*)(&keys[16 * 9])));
-    __m512i key_10_reg = _mm512_broadcast_i32x4(_mm_loadu_si128((__m128i*)(&keys[16 * 10])));
+    __m512i key_0_reg = _mm512_broadcast_i32x4(_mm_loadu_si128(keys + 0));
+    __m512i key_1_reg = _mm512_broadcast_i32x4(_mm_loadu_si128(keys + 1));
+    __m512i key_2_reg = _mm512_broadcast_i32x4(_mm_loadu_si128(keys + 2));
+    __m512i key_3_reg = _mm512_broadcast_i32x4(_mm_loadu_si128(keys + 3));
+    __m512i key_4_reg = _mm512_broadcast_i32x4(_mm_loadu_si128(keys + 4));
+    __m512i key_5_reg = _mm512_broadcast_i32x4(_mm_loadu_si128(keys + 5));
+    __m512i key_6_reg = _mm512_broadcast_i32x4(_mm_loadu_si128(keys + 6));
+    __m512i key_7_reg = _mm512_broadcast_i32x4(_mm_loadu_si128(keys + 7));
+    __m512i key_8_reg = _mm512_broadcast_i32x4(_mm_loadu_si128(keys + 8));
+    __m512i key_9_reg = _mm512_broadcast_i32x4(_mm_loadu_si128(keys + 9));
+    __m512i key_10_reg = _mm512_broadcast_i32x4(_mm_loadu_si128(keys + 10));
 
     for (size_t i = 0; i < aes_iterations; ++i) {
         blocks_reg = _mm512_xor_si512(blocks_reg, key_10_reg);
@@ -219,7 +219,7 @@ __attribute__((target("aes,avx512f,vaes")))
 char pot_verify_pipelined_x12_low_level(
   unsigned char* blocks,
   const unsigned char* expected_first_4_blocks,
-  const unsigned char* keys,
+  const __m128i* keys,
   size_t aes_iterations
 ) {
     __m512i expected_blocks_0_reg = _mm512_loadu_si512((__m512i*)expected_first_4_blocks);
@@ -230,17 +230,17 @@ char pot_verify_pipelined_x12_low_level(
     __m512i blocks_1_reg = _mm512_loadu_si512((__m512i*)(&blocks[16 * 4 * 1]));
     __m512i blocks_2_reg = _mm512_loadu_si512((__m512i*)(&blocks[16 * 4 * 2]));
 
-    __m512i key_0_reg = _mm512_broadcast_i32x4(_mm_loadu_si128((__m128i*)(&keys[16 * 0])));
-    __m512i key_1_reg = _mm512_broadcast_i32x4(_mm_loadu_si128((__m128i*)(&keys[16 * 1])));
-    __m512i key_2_reg = _mm512_broadcast_i32x4(_mm_loadu_si128((__m128i*)(&keys[16 * 2])));
-    __m512i key_3_reg = _mm512_broadcast_i32x4(_mm_loadu_si128((__m128i*)(&keys[16 * 3])));
-    __m512i key_4_reg = _mm512_broadcast_i32x4(_mm_loadu_si128((__m128i*)(&keys[16 * 4])));
-    __m512i key_5_reg = _mm512_broadcast_i32x4(_mm_loadu_si128((__m128i*)(&keys[16 * 5])));
-    __m512i key_6_reg = _mm512_broadcast_i32x4(_mm_loadu_si128((__m128i*)(&keys[16 * 6])));
-    __m512i key_7_reg = _mm512_broadcast_i32x4(_mm_loadu_si128((__m128i*)(&keys[16 * 7])));
-    __m512i key_8_reg = _mm512_broadcast_i32x4(_mm_loadu_si128((__m128i*)(&keys[16 * 8])));
-    __m512i key_9_reg = _mm512_broadcast_i32x4(_mm_loadu_si128((__m128i*)(&keys[16 * 9])));
-    __m512i key_10_reg = _mm512_broadcast_i32x4(_mm_loadu_si128((__m128i*)(&keys[16 * 10])));
+    __m512i key_0_reg = _mm512_broadcast_i32x4(_mm_loadu_si128(keys + 0));
+    __m512i key_1_reg = _mm512_broadcast_i32x4(_mm_loadu_si128(keys + 1));
+    __m512i key_2_reg = _mm512_broadcast_i32x4(_mm_loadu_si128(keys + 2));
+    __m512i key_3_reg = _mm512_broadcast_i32x4(_mm_loadu_si128(keys + 3));
+    __m512i key_4_reg = _mm512_broadcast_i32x4(_mm_loadu_si128(keys + 4));
+    __m512i key_5_reg = _mm512_broadcast_i32x4(_mm_loadu_si128(keys + 5));
+    __m512i key_6_reg = _mm512_broadcast_i32x4(_mm_loadu_si128(keys + 6));
+    __m512i key_7_reg = _mm512_broadcast_i32x4(_mm_loadu_si128(keys + 7));
+    __m512i key_8_reg = _mm512_broadcast_i32x4(_mm_loadu_si128(keys + 8));
+    __m512i key_9_reg = _mm512_broadcast_i32x4(_mm_loadu_si128(keys + 9));
+    __m512i key_10_reg = _mm512_broadcast_i32x4(_mm_loadu_si128(keys + 10));
 
     for (size_t i = 0; i < aes_iterations; ++i) {
         blocks_0_reg = _mm512_xor_si512(blocks_0_reg, key_10_reg);
@@ -303,7 +303,7 @@ __attribute__((target("aes,avx512f,vaes")))
 char pot_verify_pipelined_x8_low_level(
   unsigned char* blocks,
   const unsigned char* expected_first_4_blocks,
-  const unsigned char* keys,
+  const __m128i* keys,
   size_t aes_iterations
 ) {
     __m512i expected_blocks_0_reg = _mm512_loadu_si512((__m512i*)expected_first_4_blocks);
@@ -312,17 +312,17 @@ char pot_verify_pipelined_x8_low_level(
     __m512i blocks_0_reg = _mm512_loadu_si512((__m512i*)(&blocks[16 * 4 * 0]));
     __m512i blocks_1_reg = _mm512_loadu_si512((__m512i*)(&blocks[16 * 4 * 1]));
 
-    __m512i key_0_reg = _mm512_broadcast_i32x4(_mm_loadu_si128((__m128i*)(&keys[16 * 0])));
-    __m512i key_1_reg = _mm512_broadcast_i32x4(_mm_loadu_si128((__m128i*)(&keys[16 * 1])));
-    __m512i key_2_reg = _mm512_broadcast_i32x4(_mm_loadu_si128((__m128i*)(&keys[16 * 2])));
-    __m512i key_3_reg = _mm512_broadcast_i32x4(_mm_loadu_si128((__m128i*)(&keys[16 * 3])));
-    __m512i key_4_reg = _mm512_broadcast_i32x4(_mm_loadu_si128((__m128i*)(&keys[16 * 4])));
-    __m512i key_5_reg = _mm512_broadcast_i32x4(_mm_loadu_si128((__m128i*)(&keys[16 * 5])));
-    __m512i key_6_reg = _mm512_broadcast_i32x4(_mm_loadu_si128((__m128i*)(&keys[16 * 6])));
-    __m512i key_7_reg = _mm512_broadcast_i32x4(_mm_loadu_si128((__m128i*)(&keys[16 * 7])));
-    __m512i key_8_reg = _mm512_broadcast_i32x4(_mm_loadu_si128((__m128i*)(&keys[16 * 8])));
-    __m512i key_9_reg = _mm512_broadcast_i32x4(_mm_loadu_si128((__m128i*)(&keys[16 * 9])));
-    __m512i key_10_reg = _mm512_broadcast_i32x4(_mm_loadu_si128((__m128i*)(&keys[16 * 10])));
+    __m512i key_0_reg = _mm512_broadcast_i32x4(_mm_loadu_si128(keys + 0));
+    __m512i key_1_reg = _mm512_broadcast_i32x4(_mm_loadu_si128(keys + 1));
+    __m512i key_2_reg = _mm512_broadcast_i32x4(_mm_loadu_si128(keys + 2));
+    __m512i key_3_reg = _mm512_broadcast_i32x4(_mm_loadu_si128(keys + 3));
+    __m512i key_4_reg = _mm512_broadcast_i32x4(_mm_loadu_si128(keys + 4));
+    __m512i key_5_reg = _mm512_broadcast_i32x4(_mm_loadu_si128(keys + 5));
+    __m512i key_6_reg = _mm512_broadcast_i32x4(_mm_loadu_si128(keys + 6));
+    __m512i key_7_reg = _mm512_broadcast_i32x4(_mm_loadu_si128(keys + 7));
+    __m512i key_8_reg = _mm512_broadcast_i32x4(_mm_loadu_si128(keys + 8));
+    __m512i key_9_reg = _mm512_broadcast_i32x4(_mm_loadu_si128(keys + 9));
+    __m512i key_10_reg = _mm512_broadcast_i32x4(_mm_loadu_si128(keys + 10));
 
     for (size_t i = 0; i < aes_iterations; ++i) {
         blocks_0_reg = _mm512_xor_si512(blocks_0_reg, key_10_reg);
@@ -373,24 +373,24 @@ __attribute__((target("aes,avx512f,vaes")))
 char pot_verify_x4_low_level(
   unsigned char* blocks,
   const unsigned char* expected_blocks,
-  const unsigned char* keys,
+  const __m128i* keys,
   size_t aes_iterations
 ) {
     __m512i expected_blocks_reg = _mm512_loadu_si512((__m512i*)expected_blocks);
 
     __m512i blocks_reg = _mm512_loadu_si512((__m512i*)(&blocks[16 * 4 * 0]));
 
-    __m512i key_0_reg = _mm512_broadcast_i32x4(_mm_loadu_si128((__m128i*)(&keys[16 * 0])));
-    __m512i key_1_reg = _mm512_broadcast_i32x4(_mm_loadu_si128((__m128i*)(&keys[16 * 1])));
-    __m512i key_2_reg = _mm512_broadcast_i32x4(_mm_loadu_si128((__m128i*)(&keys[16 * 2])));
-    __m512i key_3_reg = _mm512_broadcast_i32x4(_mm_loadu_si128((__m128i*)(&keys[16 * 3])));
-    __m512i key_4_reg = _mm512_broadcast_i32x4(_mm_loadu_si128((__m128i*)(&keys[16 * 4])));
-    __m512i key_5_reg = _mm512_broadcast_i32x4(_mm_loadu_si128((__m128i*)(&keys[16 * 5])));
-    __m512i key_6_reg = _mm512_broadcast_i32x4(_mm_loadu_si128((__m128i*)(&keys[16 * 6])));
-    __m512i key_7_reg = _mm512_broadcast_i32x4(_mm_loadu_si128((__m128i*)(&keys[16 * 7])));
-    __m512i key_8_reg = _mm512_broadcast_i32x4(_mm_loadu_si128((__m128i*)(&keys[16 * 8])));
-    __m512i key_9_reg = _mm512_broadcast_i32x4(_mm_loadu_si128((__m128i*)(&keys[16 * 9])));
-    __m512i key_10_reg = _mm512_broadcast_i32x4(_mm_loadu_si128((__m128i*)(&keys[16 * 10])));
+    __m512i key_0_reg = _mm512_broadcast_i32x4(_mm_loadu_si128(keys + 0));
+    __m512i key_1_reg = _mm512_broadcast_i32x4(_mm_loadu_si128(keys + 1));
+    __m512i key_2_reg = _mm512_broadcast_i32x4(_mm_loadu_si128(keys + 2));
+    __m512i key_3_reg = _mm512_broadcast_i32x4(_mm_loadu_si128(keys + 3));
+    __m512i key_4_reg = _mm512_broadcast_i32x4(_mm_loadu_si128(keys + 4));
+    __m512i key_5_reg = _mm512_broadcast_i32x4(_mm_loadu_si128(keys + 5));
+    __m512i key_6_reg = _mm512_broadcast_i32x4(_mm_loadu_si128(keys + 6));
+    __m512i key_7_reg = _mm512_broadcast_i32x4(_mm_loadu_si128(keys + 7));
+    __m512i key_8_reg = _mm512_broadcast_i32x4(_mm_loadu_si128(keys + 8));
+    __m512i key_9_reg = _mm512_broadcast_i32x4(_mm_loadu_si128(keys + 9));
+    __m512i key_10_reg = _mm512_broadcast_i32x4(_mm_loadu_si128(keys + 10));
 
     for (size_t i = 0; i < aes_iterations; ++i) {
         blocks_reg = _mm512_xor_si512(blocks_reg, key_10_reg);
