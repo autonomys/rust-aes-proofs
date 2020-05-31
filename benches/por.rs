@@ -3,13 +3,12 @@ use criterion::criterion_group;
 use criterion::criterion_main;
 use criterion::Criterion;
 use rayon::prelude::*;
-use rust_aes_proofs::aes_low_level::aes_ni as low_level_aes_ni;
 use rust_aes_proofs::aes_low_level::software;
-use rust_aes_proofs::por::aes_ni;
+use rust_aes_proofs::por::aes_ni::AesNi;
 use rust_aes_proofs::por::opencl::OpenCLPoR;
 use rust_aes_proofs::por::software_bit_slicing;
 use rust_aes_proofs::por::software_lut;
-use rust_aes_proofs::por::vaes;
+use rust_aes_proofs::por::vaes::VAes;
 use rust_aes_proofs::utils;
 use rust_aes_proofs::utils::AesImplementation;
 use test_data::ID;
@@ -19,7 +18,7 @@ use test_data::PIECE;
 pub fn criterion_benchmark(c: &mut Criterion) {
     #[cfg(target_arch = "x86_64")]
     {
-        let (keys_enc, keys_dec) = low_level_aes_ni::expand(&ID);
+        let por = AesNi::new(&ID);
 
         let mut group = c.benchmark_group("AES-NI");
         group.sample_size(10);
@@ -32,13 +31,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
             let ivs = [IV; 4];
             b.iter(|| {
                 for _ in 0..10 {
-                    aes_ni::encode(
-                        &mut pieces,
-                        keys_enc,
-                        ivs,
-                        aes_iterations,
-                        breadth_iterations,
-                    );
+                    por.encode(&mut pieces, ivs, aes_iterations, breadth_iterations);
                 }
             })
         });
@@ -47,13 +40,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
             let mut piece = PIECE;
             b.iter(|| {
                 for _ in 0..10 {
-                    aes_ni::decode(
-                        &mut piece,
-                        keys_dec,
-                        &IV,
-                        aes_iterations,
-                        breadth_iterations,
-                    );
+                    por.decode(&mut piece, &IV, aes_iterations, breadth_iterations);
                 }
             })
         });
@@ -62,13 +49,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
             let mut pieces = vec![PIECE; num_cpus::get_physical() * 10];
             b.iter(|| {
                 pieces.par_iter_mut().for_each(|mut piece| {
-                    aes_ni::decode(
-                        &mut piece,
-                        keys_dec,
-                        &IV,
-                        aes_iterations,
-                        breadth_iterations,
-                    );
+                    por.decode(&mut piece, &IV, aes_iterations, breadth_iterations);
                 });
             })
         });
@@ -198,7 +179,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         if !utils::aes_implementations_available().contains(&AesImplementation::VAes) {
             println!("VAES support not available, skipping benchmarks");
         } else {
-            let keys = software::expand_keys_aes_128_enc(&ID);
+            let por = VAes::new(&ID);
 
             let mut group = c.benchmark_group("VAES");
             group.sample_size(10);
@@ -211,7 +192,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
                 let ivs = [IV; 12];
                 b.iter(|| {
                     for _ in 0..10 {
-                        vaes::encode(&mut pieces, &keys, ivs, aes_iterations, breadth_iterations);
+                        por.encode(&mut pieces, ivs, aes_iterations, breadth_iterations);
                     }
                 })
             });
@@ -220,7 +201,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
                 let mut piece = PIECE;
                 b.iter(|| {
                     for _ in 0..10 {
-                        vaes::decode(&mut piece, &keys, &IV, aes_iterations, breadth_iterations);
+                        por.decode(&mut piece, &IV, aes_iterations, breadth_iterations);
                     }
                 })
             });
@@ -229,7 +210,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
                 let mut piece = vec![PIECE; num_cpus::get_physical() * 10];
                 b.iter(|| {
                     piece.par_iter_mut().for_each(|mut piece| {
-                        vaes::decode(&mut piece, &keys, &IV, aes_iterations, breadth_iterations);
+                        por.decode(&mut piece, &IV, aes_iterations, breadth_iterations);
                     });
                 })
             });

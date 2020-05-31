@@ -1,3 +1,4 @@
+use crate::aes_low_level::software;
 use crate::aes_low_level::vaes;
 use crate::por::utils;
 use crate::Block;
@@ -6,32 +7,46 @@ use crate::BLOCK_SIZE;
 use crate::PIECE_SIZE;
 use std::io::Write;
 
-/// Pipelined proof of replication encoding with VAES
-pub fn encode(
-    pieces: &mut [Piece; 12],
-    keys: &[Block; 11],
-    mut ivs: [Block; 12],
-    aes_iterations: usize,
-    breadth_iterations: usize,
-) {
-    for _ in 0..breadth_iterations {
-        ivs = encode_internal(pieces, keys, ivs, aes_iterations);
-    }
+// TODO: This should use keys expanded using AES-NI
+pub struct VAes {
+    keys_enc: [Block; 11],
+    keys_dec: [Block; 11],
 }
 
-/// Pipelined proof of replication decoding with VAES
-pub fn decode(
-    piece: &mut Piece,
-    keys: &[Block; 11],
-    iv: &Block,
-    aes_iterations: usize,
-    breadth_iterations: usize,
-) {
-    for _ in 1..breadth_iterations {
-        decode_internal(piece, keys, None, aes_iterations);
+impl VAes {
+    pub fn new(id: &Block) -> Self {
+        let keys_enc = software::expand_keys_aes_128_enc(&id);
+        let keys_dec = software::expand_keys_aes_128_dec(&id);
+        Self { keys_enc, keys_dec }
     }
 
-    decode_internal(piece, keys, Some(iv), aes_iterations);
+    /// Pipelined proof of replication encoding with VAES
+    pub fn encode(
+        &self,
+        pieces: &mut [Piece; 12],
+        mut ivs: [Block; 12],
+        aes_iterations: usize,
+        breadth_iterations: usize,
+    ) {
+        for _ in 0..breadth_iterations {
+            ivs = encode_internal(pieces, &self.keys_enc, ivs, aes_iterations);
+        }
+    }
+
+    /// Pipelined proof of replication decoding with VAES
+    pub fn decode(
+        &self,
+        piece: &mut Piece,
+        iv: &Block,
+        aes_iterations: usize,
+        breadth_iterations: usize,
+    ) {
+        for _ in 1..breadth_iterations {
+            decode_internal(piece, &self.keys_dec, None, aes_iterations);
+        }
+
+        decode_internal(piece, &self.keys_dec, Some(iv), aes_iterations);
+    }
 }
 
 /// Returns iv for the next round
@@ -143,7 +158,6 @@ fn decode_4_blocks_internal(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::aes_low_level::software;
     use crate::por::test_data::CORRECT_ENCODING;
     use crate::por::test_data::CORRECT_ENCODING_BREADTH_10;
     use crate::por::test_data::ID;
@@ -162,19 +176,17 @@ mod tests {
         }
         let aes_iterations = 256;
 
-        let keys = software::expand_keys_aes_128_enc(&ID);
+        let por = VAes::new(&ID);
 
         let mut encodings = [INPUT; 12];
-        encode(&mut encodings, &keys, [IV; 12], aes_iterations, 1);
+        por.encode(&mut encodings, [IV; 12], aes_iterations, 1);
 
         for encoding in encodings.iter() {
             assert_eq!(encoding.to_vec(), CORRECT_ENCODING.to_vec());
         }
 
-        let keys = software::expand_keys_aes_128_dec(&ID);
-
         let mut decoding = CORRECT_ENCODING;
-        decode(&mut decoding, &keys, &IV, aes_iterations, 1);
+        por.decode(&mut decoding, &IV, aes_iterations, 1);
 
         assert_eq!(decoding.to_vec(), INPUT.to_vec());
     }
@@ -187,19 +199,17 @@ mod tests {
         }
         let aes_iterations = 256;
 
-        let keys = software::expand_keys_aes_128_enc(&ID);
+        let por = VAes::new(&ID);
 
         let mut encodings = [INPUT; 12];
-        encode(&mut encodings, &keys, [IV; 12], aes_iterations, 10);
+        por.encode(&mut encodings, [IV; 12], aes_iterations, 10);
 
         for encoding in encodings.iter() {
             assert_eq!(encoding.to_vec(), CORRECT_ENCODING_BREADTH_10.to_vec());
         }
 
-        let keys = software::expand_keys_aes_128_dec(&ID);
-
         let mut decoding = CORRECT_ENCODING_BREADTH_10;
-        decode(&mut decoding, &keys, &IV, aes_iterations, 10);
+        por.decode(&mut decoding, &IV, aes_iterations, 10);
 
         assert_eq!(decoding.to_vec(), INPUT.to_vec());
     }
@@ -221,16 +231,14 @@ mod tests {
         let mut iv = [0u8; 16];
         rand::thread_rng().fill(&mut iv[..]);
 
-        let keys = software::expand_keys_aes_128_enc(&id);
+        let por = VAes::new(&id);
 
         let mut encodings = [input; 12];
-        encode(&mut encodings, &keys, [iv; 12], aes_iterations, 1);
-
-        let keys = software::expand_keys_aes_128_dec(&id);
+        por.encode(&mut encodings, [iv; 12], aes_iterations, 1);
 
         for encoding in encodings.iter() {
             let mut decoding = *encoding;
-            decode(&mut decoding, &keys, &iv, aes_iterations, 1);
+            por.decode(&mut decoding, &iv, aes_iterations, 1);
 
             assert_eq!(decoding.to_vec(), input.to_vec());
         }
@@ -253,16 +261,14 @@ mod tests {
         let mut iv = [0u8; 16];
         rand::thread_rng().fill(&mut iv[..]);
 
-        let keys = software::expand_keys_aes_128_enc(&id);
+        let por = VAes::new(&id);
 
         let mut encodings = [input; 12];
-        encode(&mut encodings, &keys, [iv; 12], aes_iterations, 10);
-
-        let keys = software::expand_keys_aes_128_dec(&id);
+        por.encode(&mut encodings, [iv; 12], aes_iterations, 10);
 
         for encoding in encodings.iter() {
             let mut decoding = *encoding;
-            decode(&mut decoding, &keys, &iv, aes_iterations, 10);
+            por.decode(&mut decoding, &iv, aes_iterations, 10);
 
             assert_eq!(decoding.to_vec(), input.to_vec());
         }

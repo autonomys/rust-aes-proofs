@@ -8,32 +8,44 @@ use crate::Piece;
 use crate::BLOCK_SIZE;
 use crate::PIECE_SIZE;
 
-/// Pipelined proof of replication encoding with AES-NI
-pub fn encode(
-    pieces: &mut [Piece; 4],
-    keys_reg: ExpandedKeys,
-    mut ivs: [Block; 4],
-    aes_iterations: usize,
-    breadth_iterations: usize,
-) {
-    for _ in 0..breadth_iterations {
-        ivs = encode_internal(pieces, keys_reg, ivs, aes_iterations);
-    }
+pub struct AesNi {
+    keys_enc: ExpandedKeys,
+    keys_dec: ExpandedKeys,
 }
 
-/// Pipelined proof of replication decoding with AES-NI
-pub fn decode(
-    piece: &mut Piece,
-    keys_reg: ExpandedKeys,
-    iv: &Block,
-    aes_iterations: usize,
-    breadth_iterations: usize,
-) {
-    for _ in 1..breadth_iterations {
-        decode_internal(piece, keys_reg, None, aes_iterations);
+impl AesNi {
+    pub fn new(id: &Block) -> Self {
+        let (keys_enc, keys_dec) = aes_ni::expand(id);
+        Self { keys_enc, keys_dec }
     }
 
-    decode_internal(piece, keys_reg, Some(iv), aes_iterations);
+    /// Pipelined proof of replication encoding with AES-NI
+    pub fn encode(
+        &self,
+        pieces: &mut [Piece; 4],
+        mut ivs: [Block; 4],
+        aes_iterations: usize,
+        breadth_iterations: usize,
+    ) {
+        for _ in 0..breadth_iterations {
+            ivs = encode_internal(pieces, self.keys_enc, ivs, aes_iterations);
+        }
+    }
+
+    /// Pipelined proof of replication decoding with AES-NI
+    pub fn decode(
+        &self,
+        piece: &mut Piece,
+        iv: &Block,
+        aes_iterations: usize,
+        breadth_iterations: usize,
+    ) {
+        for _ in 1..breadth_iterations {
+            decode_internal(piece, self.keys_dec, None, aes_iterations);
+        }
+
+        decode_internal(piece, self.keys_dec, Some(iv), aes_iterations);
+    }
 }
 
 /// Returns iv for the next round
@@ -130,17 +142,17 @@ mod tests {
     fn test() {
         let aes_iterations = 256;
 
-        let (keys_enc, keys_dec) = aes_ni::expand(&ID);
+        let por = AesNi::new(&ID);
 
         let mut encodings = [INPUT; 4];
-        encode(&mut encodings, keys_enc, [IV; 4], aes_iterations, 1);
+        por.encode(&mut encodings, [IV; 4], aes_iterations, 1);
 
         for encoding in encodings.iter() {
             assert_eq!(encoding.to_vec(), CORRECT_ENCODING.to_vec());
         }
 
         let mut decoding = CORRECT_ENCODING;
-        decode(&mut decoding, keys_dec, &IV, aes_iterations, 1);
+        por.decode(&mut decoding, &IV, aes_iterations, 1);
 
         assert_eq!(decoding.to_vec(), INPUT.to_vec());
     }
@@ -149,17 +161,17 @@ mod tests {
     fn test_breadth_10() {
         let aes_iterations = 256;
 
-        let (keys_enc, keys_dec) = aes_ni::expand(&ID);
+        let por = AesNi::new(&ID);
 
         let mut encodings = [INPUT; 4];
-        encode(&mut encodings, keys_enc, [IV; 4], aes_iterations, 10);
+        por.encode(&mut encodings, [IV; 4], aes_iterations, 10);
 
         for encoding in encodings.iter() {
             assert_eq!(encoding.to_vec(), CORRECT_ENCODING_BREADTH_10.to_vec());
         }
 
         let mut decoding = CORRECT_ENCODING_BREADTH_10;
-        decode(&mut decoding, keys_dec, &IV, aes_iterations, 10);
+        por.decode(&mut decoding, &IV, aes_iterations, 10);
 
         assert_eq!(decoding.to_vec(), INPUT.to_vec());
     }
@@ -177,14 +189,14 @@ mod tests {
         let mut iv = [0u8; 16];
         rand::thread_rng().fill(&mut iv[..]);
 
-        let (keys_enc, keys_dec) = aes_ni::expand(&ID);
+        let por = AesNi::new(&id);
 
         let mut encodings = [input; 4];
-        encode(&mut encodings, keys_enc, [iv; 4], aes_iterations, 1);
+        por.encode(&mut encodings, [iv; 4], aes_iterations, 1);
 
         for encoding in encodings.iter() {
             let mut decoding = *encoding;
-            decode(&mut decoding, keys_dec, &iv, aes_iterations, 1);
+            por.decode(&mut decoding, &iv, aes_iterations, 1);
 
             assert_eq!(decoding.to_vec(), input.to_vec());
         }
@@ -203,14 +215,14 @@ mod tests {
         let mut iv = [0u8; 16];
         rand::thread_rng().fill(&mut iv[..]);
 
-        let (keys_enc, keys_dec) = aes_ni::expand(&ID);
+        let por = AesNi::new(&id);
 
         let mut encodings = [input; 4];
-        encode(&mut encodings, keys_enc, [iv; 4], aes_iterations, 10);
+        por.encode(&mut encodings, [iv; 4], aes_iterations, 10);
 
         for encoding in encodings.iter() {
             let mut decoding = *encoding;
-            decode(&mut decoding, keys_dec, &iv, aes_iterations, 10);
+            por.decode(&mut decoding, &iv, aes_iterations, 10);
 
             assert_eq!(decoding.to_vec(), input.to_vec());
         }

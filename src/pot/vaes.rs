@@ -115,7 +115,6 @@ mod tests {
             return;
         }
         let aes_iterations = 288;
-        let aes_iterations = 256;
         let verifier_parallelism = 12;
 
         let mut key = [0u8; 16];
