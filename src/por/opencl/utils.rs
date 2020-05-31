@@ -1,4 +1,4 @@
-use crate::por::Block;
+use crate::Block;
 use ocl::core::Uchar16;
 use ocl::core::Uint;
 use std::convert::TryInto;

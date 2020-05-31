@@ -1,8 +1,8 @@
 use crate::por::utils;
-use crate::por::Block;
-use crate::por::Piece;
-use crate::por::BLOCK_SIZE;
-use crate::por::PIECE_SIZE;
+use crate::Block;
+use crate::Piece;
+use crate::BLOCK_SIZE;
+use crate::PIECE_SIZE;
 use aes_frast::aes_core;
 use std::io::Write;
 
@@ -108,7 +108,7 @@ mod tests {
     use crate::por::test_data::ID;
     use crate::por::test_data::INPUT;
     use crate::por::test_data::IV;
-    use crate::por::PIECE_SIZE;
+    use crate::PIECE_SIZE;
     use rand::Rng;
 
     #[test]

@@ -1,8 +1,8 @@
 use crate::por::utils;
-use crate::por::Block;
-use crate::por::Piece;
-use crate::por::BLOCK_SIZE;
-use crate::por::PIECE_SIZE;
+use crate::Block;
+use crate::Piece;
+use crate::BLOCK_SIZE;
+use crate::PIECE_SIZE;
 use aes_soft::block_cipher_trait::generic_array::typenum::{U16, U8};
 use aes_soft::block_cipher_trait::generic_array::GenericArray;
 use aes_soft::block_cipher_trait::BlockCipher;
@@ -222,7 +222,7 @@ mod tests {
     use crate::por::test_data::ID;
     use crate::por::test_data::INPUT;
     use crate::por::test_data::IV;
-    use crate::por::PIECE_SIZE;
+    use crate::PIECE_SIZE;
     use rand::Rng;
 
     #[test]

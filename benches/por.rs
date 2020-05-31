@@ -221,8 +221,8 @@ criterion_group!(benches, criterion_benchmark);
 criterion_main!(benches);
 
 mod test_data {
-    use rust_aes_proofs::por::Block;
-    use rust_aes_proofs::por::Piece;
+    use rust_aes_proofs::Block;
+    use rust_aes_proofs::Piece;
 
     pub const IV: Block = [
         //                13

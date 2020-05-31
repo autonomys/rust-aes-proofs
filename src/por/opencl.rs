@@ -1,8 +1,8 @@
 mod utils;
 
-use crate::por::Block;
-use crate::por::BLOCK_SIZE;
-use crate::por::PIECE_SIZE;
+use crate::Block;
+use crate::BLOCK_SIZE;
+use crate::PIECE_SIZE;
 use ocl::{
     core::{
         build_program, create_buffer, create_command_queue, create_context, create_kernel,

@@ -1,9 +1,9 @@
 use crate::aes_low_level::vaes;
 use crate::por::utils;
-use crate::por::Block;
-use crate::por::Piece;
-use crate::por::BLOCK_SIZE;
-use crate::por::PIECE_SIZE;
+use crate::Block;
+use crate::Piece;
+use crate::BLOCK_SIZE;
+use crate::PIECE_SIZE;
 use std::io::Write;
 
 /// Pipelined proof of replication encoding with VAES
@@ -149,9 +149,9 @@ mod tests {
     use crate::por::test_data::ID;
     use crate::por::test_data::INPUT;
     use crate::por::test_data::IV;
-    use crate::por::PIECE_SIZE;
     use crate::utils;
     use crate::utils::AesImplementation;
+    use crate::PIECE_SIZE;
     use rand::Rng;
 
     #[test]

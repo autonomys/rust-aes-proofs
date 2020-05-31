@@ -3,10 +3,10 @@ use crate::aes128_load_keys;
 use crate::aes128_store4;
 use crate::aes_low_level::aes_ni;
 use crate::por::utils;
-use crate::por::Block;
-use crate::por::Piece;
-use crate::por::BLOCK_SIZE;
-use crate::por::PIECE_SIZE;
+use crate::Block;
+use crate::Piece;
+use crate::BLOCK_SIZE;
+use crate::PIECE_SIZE;
 use core::arch::x86_64::*;
 
 /// Pipelined proof of replication encoding with AES-NI
@@ -129,7 +129,7 @@ mod tests {
     use crate::por::test_data::ID;
     use crate::por::test_data::INPUT;
     use crate::por::test_data::IV;
-    use crate::por::PIECE_SIZE;
+    use crate::PIECE_SIZE;
     use rand::Rng;
 
     #[test]
