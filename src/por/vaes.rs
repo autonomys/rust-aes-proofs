@@ -143,7 +143,7 @@ fn decode_4_blocks_internal(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::aes_low_level::key_expansion;
+    use crate::aes_low_level::software;
     use crate::por::test_data::CORRECT_ENCODING;
     use crate::por::test_data::CORRECT_ENCODING_BREADTH_10;
     use crate::por::test_data::ID;
@@ -162,7 +162,7 @@ mod tests {
         }
         let aes_iterations = 256;
 
-        let keys = key_expansion::expand_keys_aes_128_enc(&ID);
+        let keys = software::expand_keys_aes_128_enc(&ID);
 
         let mut encodings = [INPUT; 12];
         encode(&mut encodings, &keys, [IV; 12], aes_iterations, 1);
@@ -171,7 +171,7 @@ mod tests {
             assert_eq!(encoding.to_vec(), CORRECT_ENCODING.to_vec());
         }
 
-        let keys = key_expansion::expand_keys_aes_128_dec(&ID);
+        let keys = software::expand_keys_aes_128_dec(&ID);
 
         let mut decoding = CORRECT_ENCODING;
         decode(&mut decoding, &keys, &IV, aes_iterations, 1);
@@ -187,7 +187,7 @@ mod tests {
         }
         let aes_iterations = 256;
 
-        let keys = key_expansion::expand_keys_aes_128_enc(&ID);
+        let keys = software::expand_keys_aes_128_enc(&ID);
 
         let mut encodings = [INPUT; 12];
         encode(&mut encodings, &keys, [IV; 12], aes_iterations, 10);
@@ -196,7 +196,7 @@ mod tests {
             assert_eq!(encoding.to_vec(), CORRECT_ENCODING_BREADTH_10.to_vec());
         }
 
-        let keys = key_expansion::expand_keys_aes_128_dec(&ID);
+        let keys = software::expand_keys_aes_128_dec(&ID);
 
         let mut decoding = CORRECT_ENCODING_BREADTH_10;
         decode(&mut decoding, &keys, &IV, aes_iterations, 10);
@@ -221,12 +221,12 @@ mod tests {
         let mut iv = [0u8; 16];
         rand::thread_rng().fill(&mut iv[..]);
 
-        let keys = key_expansion::expand_keys_aes_128_enc(&id);
+        let keys = software::expand_keys_aes_128_enc(&id);
 
         let mut encodings = [input; 12];
         encode(&mut encodings, &keys, [iv; 12], aes_iterations, 1);
 
-        let keys = key_expansion::expand_keys_aes_128_dec(&id);
+        let keys = software::expand_keys_aes_128_dec(&id);
 
         for encoding in encodings.iter() {
             let mut decoding = *encoding;
@@ -253,12 +253,12 @@ mod tests {
         let mut iv = [0u8; 16];
         rand::thread_rng().fill(&mut iv[..]);
 
-        let keys = key_expansion::expand_keys_aes_128_enc(&id);
+        let keys = software::expand_keys_aes_128_enc(&id);
 
         let mut encodings = [input; 12];
         encode(&mut encodings, &keys, [iv; 12], aes_iterations, 10);
 
-        let keys = key_expansion::expand_keys_aes_128_dec(&id);
+        let keys = software::expand_keys_aes_128_dec(&id);
 
         for encoding in encodings.iter() {
             let mut decoding = *encoding;

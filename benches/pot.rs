@@ -2,7 +2,7 @@
 use criterion::criterion_group;
 use criterion::criterion_main;
 use criterion::Criterion;
-use rust_aes_proofs::aes_low_level::key_expansion;
+use rust_aes_proofs::aes_low_level::software;
 use rust_aes_proofs::pot::aes_ni;
 use rust_aes_proofs::pot::vaes;
 use rust_aes_proofs::utils;
@@ -20,7 +20,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
             0xa2, 0x7a,
         ];
         let base_aes_iterations = 3_000_000;
-        let prove_keys = key_expansion::expand_keys_aes_128_enc(&id);
+        let prove_keys = software::expand_keys_aes_128_enc(&id);
 
         let mut group = c.benchmark_group("AES-NI");
         group.sample_size(10);
@@ -47,7 +47,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
             );
 
             let proof = aes_ni::prove(&seed, &prove_keys, aes_iterations, verifier_parallelism);
-            let verify_keys = key_expansion::expand_keys_aes_128_dec(&id);
+            let verify_keys = software::expand_keys_aes_128_dec(&id);
 
             group.bench_function(
                 format!(
@@ -88,7 +88,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
             0xa2, 0x7a,
         ];
         let base_aes_iterations = 3_000_000;
-        let prove_keys = key_expansion::expand_keys_aes_128_enc(&id);
+        let prove_keys = software::expand_keys_aes_128_enc(&id);
 
         let mut group = c.benchmark_group("VAES");
         group.sample_size(10);
@@ -115,7 +115,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
             );
 
             let proof = vaes::prove(&seed, &prove_keys, aes_iterations, verifier_parallelism);
-            let verify_keys = key_expansion::expand_keys_aes_128_dec(&id);
+            let verify_keys = software::expand_keys_aes_128_dec(&id);
 
             group.bench_function(
                 format!(

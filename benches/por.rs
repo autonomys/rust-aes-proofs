@@ -4,7 +4,7 @@ use criterion::criterion_group;
 use criterion::criterion_main;
 use criterion::Criterion;
 use rayon::prelude::*;
-use rust_aes_proofs::aes_low_level::key_expansion;
+use rust_aes_proofs::aes_low_level::software;
 use rust_aes_proofs::por::aes_ni;
 use rust_aes_proofs::por::opencl::OpenCLPoR;
 use rust_aes_proofs::por::software_bit_slicing;
@@ -18,7 +18,7 @@ use test_data::PIECE;
 
 pub fn criterion_benchmark(c: &mut Criterion) {
     {
-        let keys = key_expansion::expand_keys_aes_128_enc(&ID);
+        let keys = software::expand_keys_aes_128_enc(&ID);
 
         let mut group = c.benchmark_group("AES-NI");
         group.sample_size(10);
@@ -127,7 +127,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
     {
         let mut codec = OpenCLPoR::new().unwrap();
 
-        let keys = key_expansion::expand_keys_aes_128_enc(&ID);
+        let keys = software::expand_keys_aes_128_enc(&ID);
 
         let mut group = c.benchmark_group("OpenCL");
         group.sample_size(10);
@@ -177,7 +177,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
     if !utils::aes_implementations_available().contains(&AesImplementation::VAes) {
         println!("VAES support not available, skipping benchmarks");
     } else {
-        let keys = key_expansion::expand_keys_aes_128_enc(&ID);
+        let keys = software::expand_keys_aes_128_enc(&ID);
 
         let mut group = c.benchmark_group("VAES");
         group.sample_size(10);

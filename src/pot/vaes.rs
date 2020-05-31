@@ -73,7 +73,7 @@ pub fn verify(proof: &[u8], seed: &Block, keys: &[Block; 11], aes_iterations: us
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::aes_low_level::key_expansion;
+    use crate::aes_low_level::software;
     use crate::pot::test_data::CORRECT_PROOF_12;
     use crate::pot::test_data::ID;
     use crate::pot::test_data::SEED;
@@ -89,13 +89,13 @@ mod tests {
         }
         let aes_iterations = 256;
         let verifier_parallelism = 12;
-        let keys = key_expansion::expand_keys_aes_128_enc(&ID);
+        let keys = software::expand_keys_aes_128_enc(&ID);
 
         let proof = prove(&SEED, &keys, aes_iterations, verifier_parallelism);
         assert_eq!(proof.len(), verifier_parallelism * BLOCK_SIZE);
         assert_eq!(proof, CORRECT_PROOF_12.to_vec());
 
-        let keys = key_expansion::expand_keys_aes_128_dec(&ID);
+        let keys = software::expand_keys_aes_128_dec(&ID);
 
         assert!(verify(&CORRECT_PROOF_12, &SEED, &keys, aes_iterations));
 
@@ -114,7 +114,7 @@ mod tests {
 
         let mut key = [0u8; 16];
         rand::thread_rng().fill(&mut key[..]);
-        let keys = key_expansion::expand_keys_aes_128_enc(&key);
+        let keys = software::expand_keys_aes_128_enc(&key);
 
         let mut seed = [0u8; 16];
         rand::thread_rng().fill(&mut seed[..]);
@@ -122,7 +122,7 @@ mod tests {
         let proof = prove(&seed, &keys, aes_iterations, verifier_parallelism);
         assert_eq!(proof.len(), verifier_parallelism * BLOCK_SIZE);
 
-        let keys = key_expansion::expand_keys_aes_128_dec(&key);
+        let keys = software::expand_keys_aes_128_dec(&key);
 
         assert!(verify(&proof, &seed, &keys, aes_iterations));
     }
