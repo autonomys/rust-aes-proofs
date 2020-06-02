@@ -1,8 +1,8 @@
 use crate::por::utils;
-use crate::por::Block;
-use crate::por::Piece;
-use crate::por::BLOCK_SIZE;
-use crate::por::PIECE_SIZE;
+use crate::Block;
+use crate::Piece;
+use crate::BLOCK_SIZE;
+use crate::PIECE_SIZE;
 use aes_soft::block_cipher_trait::generic_array::typenum::{U16, U8};
 use aes_soft::block_cipher_trait::generic_array::GenericArray;
 use aes_soft::block_cipher_trait::BlockCipher;
@@ -12,38 +12,53 @@ use std::mem;
 
 pub type Block128x8 = GenericArray<GenericArray<u8, U16>, U8>;
 
-/// Proof of replication encoding purely in software (using bit slicing approach)
-pub fn encode(
-    pieces: &mut [Piece; 8],
-    key: &Block,
-    mut ivs: [Block; 8],
-    aes_iterations: usize,
-    breadth_iterations: usize,
-) {
-    // TODO: This should probably be made external, otherwise using the same key for frequent calls
-    //  will have severe performance hit
-    let cipher = Aes128::new(GenericArray::from_slice(key));
-    for _ in 0..breadth_iterations {
-        ivs = encode_internal(pieces, &cipher, ivs, aes_iterations);
+pub struct SoftwareBitSlicingKeys {
+    cipher: Aes128,
+}
+
+impl SoftwareBitSlicingKeys {
+    pub fn new(id: &Block) -> Self {
+        let cipher = Aes128::new(GenericArray::from_slice(id));
+        Self { cipher }
     }
 }
 
-/// Proof of replication decoding purely in software (using bit slicing approach)
-pub fn decode(
-    pieces: &mut [Piece; 8],
-    key: &Block,
-    ivs: [&Block; 8],
-    aes_iterations: usize,
-    breadth_iterations: usize,
-) {
-    // TODO: This should probably be made external, otherwise using the same key for frequent calls
-    //  will have severe performance hit
-    let cipher = Aes128::new(GenericArray::from_slice(key));
-    for _ in 1..breadth_iterations {
-        decode_internal(pieces, &cipher, None, aes_iterations);
+pub struct SoftwareBitSlicing;
+
+impl SoftwareBitSlicing {
+    pub fn new() -> Self {
+        Self {}
     }
 
-    decode_internal(pieces, &cipher, Some(ivs), aes_iterations);
+    /// Proof of replication encoding purely in software (using bit slicing approach)
+    pub fn encode(
+        &self,
+        pieces: &mut [Piece; 8],
+        keys: &SoftwareBitSlicingKeys,
+        mut ivs: [Block; 8],
+        aes_iterations: usize,
+        breadth_iterations: usize,
+    ) {
+        for _ in 0..breadth_iterations {
+            ivs = encode_internal(pieces, &keys.cipher, ivs, aes_iterations);
+        }
+    }
+
+    /// Proof of replication decoding purely in software (using bit slicing approach)
+    pub fn decode(
+        &self,
+        pieces: &mut [Piece; 8],
+        keys: &SoftwareBitSlicingKeys,
+        ivs: [&Block; 8],
+        aes_iterations: usize,
+        breadth_iterations: usize,
+    ) {
+        for _ in 1..breadth_iterations {
+            decode_internal(pieces, &keys.cipher, None, aes_iterations);
+        }
+
+        decode_internal(pieces, &keys.cipher, Some(ivs), aes_iterations);
+    }
 }
 
 fn encode_internal(
@@ -222,7 +237,7 @@ mod tests {
     use crate::por::test_data::ID;
     use crate::por::test_data::INPUT;
     use crate::por::test_data::IV;
-    use crate::por::PIECE_SIZE;
+    use crate::PIECE_SIZE;
     use rand::Rng;
 
     #[test]
@@ -230,14 +245,18 @@ mod tests {
         let aes_iterations = 256;
 
         let mut encodings = [INPUT; 8];
-        encode(&mut encodings, &ID, [IV; 8], aes_iterations, 1);
+
+        let keys = SoftwareBitSlicingKeys::new(&ID);
+        let por = SoftwareBitSlicing::new();
+
+        por.encode(&mut encodings, &keys, [IV; 8], aes_iterations, 1);
 
         for encoding in encodings.iter() {
             assert_eq!(encoding.to_vec(), CORRECT_ENCODING.to_vec());
         }
 
         let mut decodings = [CORRECT_ENCODING; 8];
-        decode(&mut decodings, &ID, [&IV; 8], aes_iterations, 1);
+        por.decode(&mut decodings, &keys, [&IV; 8], aes_iterations, 1);
 
         for decoding in decodings.iter() {
             assert_eq!(decoding.to_vec(), INPUT.to_vec());
@@ -249,14 +268,17 @@ mod tests {
         let aes_iterations = 256;
 
         let mut encodings = [INPUT; 8];
-        encode(&mut encodings, &ID, [IV; 8], aes_iterations, 10);
+        let keys = SoftwareBitSlicingKeys::new(&ID);
+        let por = SoftwareBitSlicing::new();
+
+        por.encode(&mut encodings, &keys, [IV; 8], aes_iterations, 10);
 
         for encoding in encodings.iter() {
             assert_eq!(encoding.to_vec(), CORRECT_ENCODING_BREADTH_10.to_vec());
         }
 
         let mut decodings = [CORRECT_ENCODING_BREADTH_10; 8];
-        decode(&mut decodings, &ID, [&IV; 8], aes_iterations, 10);
+        por.decode(&mut decodings, &keys, [&IV; 8], aes_iterations, 10);
 
         for decoding in decodings.iter() {
             assert_eq!(decoding.to_vec(), INPUT.to_vec());
@@ -276,11 +298,14 @@ mod tests {
         let mut iv = [0u8; 16];
         rand::thread_rng().fill(&mut iv[..]);
 
+        let keys = SoftwareBitSlicingKeys::new(&id);
+        let por = SoftwareBitSlicing::new();
+
         let mut encodings = [input; 8];
-        encode(&mut encodings, &id, [iv; 8], aes_iterations, 1);
+        por.encode(&mut encodings, &keys, [iv; 8], aes_iterations, 1);
 
         let mut decodings = encodings;
-        decode(&mut decodings, &id, [&iv; 8], aes_iterations, 1);
+        por.decode(&mut decodings, &keys, [&iv; 8], aes_iterations, 1);
 
         for decoding in decodings.iter() {
             assert_eq!(decoding.to_vec(), input.to_vec());
@@ -300,11 +325,14 @@ mod tests {
         let mut iv = [0u8; 16];
         rand::thread_rng().fill(&mut iv[..]);
 
+        let keys = SoftwareBitSlicingKeys::new(&id);
+        let por = SoftwareBitSlicing::new();
+
         let mut encodings = [input; 8];
-        encode(&mut encodings, &id, [iv; 8], aes_iterations, 10);
+        por.encode(&mut encodings, &keys, [iv; 8], aes_iterations, 10);
 
         let mut decodings = encodings;
-        decode(&mut decodings, &id, [&iv; 8], aes_iterations, 10);
+        por.decode(&mut decodings, &keys, [&iv; 8], aes_iterations, 10);
 
         for decoding in decodings.iter() {
             assert_eq!(decoding.to_vec(), input.to_vec());

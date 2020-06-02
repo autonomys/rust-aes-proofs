@@ -1,6 +1,6 @@
-use crate::por::Block;
-use crate::por::Piece;
-use crate::por::BLOCK_SIZE;
+use crate::Block;
+use crate::Piece;
+use crate::BLOCK_SIZE;
 use std::convert::TryInto;
 
 /// Returns (blocks, feedback) tuple given block index in a piece

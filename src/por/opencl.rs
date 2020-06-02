@@ -1,8 +1,9 @@
 mod utils;
 
-use crate::por::Block;
-use crate::por::BLOCK_SIZE;
-use crate::por::PIECE_SIZE;
+use crate::aes_low_level::software;
+use crate::Block;
+use crate::BLOCK_SIZE;
+use crate::PIECE_SIZE;
 use ocl::{
     core::{
         build_program, create_buffer, create_command_queue, create_context, create_kernel,
@@ -22,7 +23,20 @@ struct CachedBuffer {
     buffer_size: usize,
 }
 
-pub struct OpenCLPoR {
+pub struct OpenCLKeys {
+    keys_enc: [Block; 11],
+    keys_dec: [Block; 11],
+}
+
+impl OpenCLKeys {
+    pub fn new(id: &Block) -> Self {
+        let keys_enc = software::expand_keys_aes_128_enc(&id);
+        let keys_dec = software::expand_keys_aes_128_dec(&id);
+        Self { keys_enc, keys_dec }
+    }
+}
+
+pub struct OpenCL {
     buffer_state: Option<CachedBuffer>,
     buffer_iv: Option<CachedBuffer>,
     buffer_round_keys: Mem,
@@ -32,7 +46,7 @@ pub struct OpenCLPoR {
     queue: CommandQueue,
 }
 
-impl OpenCLPoR {
+impl OpenCL {
     pub fn new() -> Result<Self> {
         let platform = Platform::first()?;
 
@@ -84,14 +98,14 @@ impl OpenCLPoR {
         &mut self,
         input: &[u8],
         ivs: &[Block],
-        keys: &[Block; 11],
+        keys: &OpenCLKeys,
         aes_iterations: u32,
         breadth_iterations: u32,
     ) -> Result<Vec<u8>> {
-        assert_eq!(input.len() % PIECE_SIZE, 0);
+        assert!(input.len() % PIECE_SIZE == 0);
 
         let blocks_count = input.len() / PIECE_SIZE;
-        assert_eq!(blocks_count, ivs.len());
+        assert!(blocks_count == ivs.len());
 
         let buffer_state = Self::validate_or_allocate_buffer::<Uchar16>(
             &self.context,
@@ -146,7 +160,7 @@ impl OpenCLPoR {
                 &self.buffer_round_keys,
                 true,
                 0,
-                &utils::keys_to_uint_vec(keys),
+                &utils::keys_to_uint_vec(&keys.keys_enc),
                 None::<Event>,
                 None::<&mut Event>,
             )?;
@@ -198,14 +212,14 @@ impl OpenCLPoR {
         &mut self,
         input: &[u8],
         ivs: &[Block],
-        keys: &[Block; 11],
+        keys: &OpenCLKeys,
         aes_iterations: u32,
         breadth_iterations: u32,
     ) -> Result<Vec<u8>> {
-        assert_eq!(input.len() % PIECE_SIZE, 0);
+        assert!(input.len() % PIECE_SIZE == 0);
 
         let blocks_count = input.len() / PIECE_SIZE;
-        assert_eq!(blocks_count, ivs.len());
+        assert!(blocks_count == ivs.len());
 
         let buffer_state = Self::validate_or_allocate_buffer::<Uchar16>(
             &self.context,
@@ -260,7 +274,7 @@ impl OpenCLPoR {
                 &self.buffer_round_keys,
                 true,
                 0,
-                &utils::keys_to_uint_vec(keys),
+                &utils::keys_to_uint_vec(&keys.keys_dec),
                 None::<Event>,
                 None::<&mut Event>,
             )?;
@@ -329,7 +343,6 @@ impl OpenCLPoR {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::aes_low_level::key_expansion;
     use crate::por::test_data::CORRECT_ENCODING;
     use crate::por::test_data::CORRECT_ENCODING_BREADTH_10;
     use crate::por::test_data::ID;
@@ -339,9 +352,9 @@ mod tests {
 
     #[test]
     fn test_simple() {
-        let mut codec = OpenCLPoR::new().unwrap();
+        let mut codec = OpenCL::new().unwrap();
 
-        let keys = key_expansion::expand_keys_aes_128_enc(&ID);
+        let keys = OpenCLKeys::new(&ID);
 
         let encryption = codec.encode(&INPUT, &[IV], &keys, 256, 1).unwrap();
         assert_eq!(encryption, CORRECT_ENCODING.to_vec());
@@ -368,8 +381,6 @@ mod tests {
             CORRECT_ENCODING.to_vec(),
         );
 
-        let keys = key_expansion::expand_keys_aes_128_dec(&ID);
-
         let decryption = codec.decode(&encryption, &[IV], &keys, 256, 1).unwrap();
         assert_eq!(decryption, INPUT.to_vec());
 
@@ -383,9 +394,9 @@ mod tests {
 
     #[test]
     fn test_breadth_10() {
-        let mut codec = OpenCLPoR::new().unwrap();
+        let mut codec = OpenCL::new().unwrap();
 
-        let keys = key_expansion::expand_keys_aes_128_enc(&ID);
+        let keys = OpenCLKeys::new(&ID);
 
         let encryption = codec.encode(&INPUT, &[IV], &keys, 256, 10).unwrap();
         assert_eq!(encryption, CORRECT_ENCODING_BREADTH_10.to_vec());
@@ -412,8 +423,6 @@ mod tests {
             CORRECT_ENCODING_BREADTH_10.to_vec(),
         );
 
-        let keys = key_expansion::expand_keys_aes_128_dec(&ID);
-
         let decryption = codec.decode(&encryption, &[IV], &keys, 256, 10).unwrap();
         assert_eq!(decryption, INPUT.to_vec());
 
@@ -427,7 +436,7 @@ mod tests {
 
     #[test]
     fn test_random_simple() {
-        let mut codec = OpenCLPoR::new().unwrap();
+        let mut codec = OpenCL::new().unwrap();
 
         let mut id = [0u8; 16];
         rand::thread_rng().fill(&mut id[..]);
@@ -438,7 +447,7 @@ mod tests {
         let mut iv = [0u8; 16];
         rand::thread_rng().fill(&mut iv[..]);
 
-        let keys = key_expansion::expand_keys_aes_128_enc(&id);
+        let keys = OpenCLKeys::new(&id);
 
         let encryption = codec.encode(&input, &[iv], &keys, 256, 1).unwrap();
 
@@ -460,8 +469,6 @@ mod tests {
             assert_eq!(single_encryption.to_vec(), encryption.to_vec(),);
         }
 
-        let keys = key_expansion::expand_keys_aes_128_dec(&id);
-
         let decryption = codec.decode(&encryption, &[iv], &keys, 256, 1).unwrap();
         assert_eq!(decryption, input.to_vec());
 
@@ -474,7 +481,7 @@ mod tests {
 
     #[test]
     fn test_random_breadth_10() {
-        let mut codec = OpenCLPoR::new().unwrap();
+        let mut codec = OpenCL::new().unwrap();
 
         let mut id = [0u8; 16];
         rand::thread_rng().fill(&mut id[..]);
@@ -485,7 +492,7 @@ mod tests {
         let mut iv = [0u8; 16];
         rand::thread_rng().fill(&mut iv[..]);
 
-        let keys = key_expansion::expand_keys_aes_128_enc(&id);
+        let keys = OpenCLKeys::new(&id);
 
         let encryption = codec.encode(&input, &[iv], &keys, 256, 10).unwrap();
 
@@ -506,8 +513,6 @@ mod tests {
         for single_encryption in encryptions.chunks_exact(PIECE_SIZE) {
             assert_eq!(single_encryption.to_vec(), encryption.to_vec(),);
         }
-
-        let keys = key_expansion::expand_keys_aes_128_dec(&id);
 
         let decryption = codec.decode(&encryption, &[iv], &keys, 256, 10).unwrap();
         assert_eq!(decryption, input.to_vec());

@@ -1,45 +1,63 @@
 use crate::por::utils;
-use crate::por::Block;
-use crate::por::Piece;
-use crate::por::BLOCK_SIZE;
-use crate::por::PIECE_SIZE;
+use crate::Block;
+use crate::Piece;
+use crate::BLOCK_SIZE;
+use crate::PIECE_SIZE;
 use aes_frast::aes_core;
 use std::io::Write;
 
-/// Proof of replication encoding purely in software (using look-up table approach)
-pub fn encode(
-    piece: &mut Piece,
-    key: &Block,
-    mut iv: Block,
-    aes_iterations: usize,
-    breadth_iterations: usize,
-) {
-    // TODO: This should probably be made external, otherwise using the same key for frequent calls
-    //  will have severe performance hit
-    let mut keys = [0u32; 44];
-    aes_core::setkey_enc_k128(key, &mut keys);
-    for _ in 0..breadth_iterations {
-        iv = encode_internal(piece, &keys, iv, aes_iterations);
+pub struct SoftwareLuTKeys {
+    keys_enc: [u32; 44],
+    keys_dec: [u32; 44],
+}
+
+impl SoftwareLuTKeys {
+    pub fn new(id: &Block) -> Self {
+        let mut keys_enc: [u32; 44] = [0u32; 44];
+        aes_core::setkey_enc_k128(id, &mut keys_enc);
+        let mut keys_dec: [u32; 44] = [0u32; 44];
+        aes_core::setkey_dec_k128(id, &mut keys_dec);
+
+        Self { keys_enc, keys_dec }
     }
 }
 
-/// Proof of replication decoding purely in software (using look-up table approach)
-pub fn decode(
-    piece: &mut Piece,
-    key: &Block,
-    iv: &Block,
-    aes_iterations: usize,
-    breadth_iterations: usize,
-) {
-    // TODO: This should probably be made external, otherwise using the same key for frequent calls
-    //  will have severe performance hit
-    let mut keys = [0u32; 44];
-    aes_core::setkey_dec_k128(key, &mut keys);
-    for _ in 1..breadth_iterations {
-        decode_internal(piece, &keys, None, aes_iterations);
+pub struct SoftwareLuT;
+
+impl SoftwareLuT {
+    pub fn new() -> Self {
+        Self {}
     }
 
-    decode_internal(piece, &keys, Some(iv), aes_iterations);
+    /// Proof of replication encoding purely in software (using look-up table approach)
+    pub fn encode(
+        &self,
+        piece: &mut Piece,
+        keys: &SoftwareLuTKeys,
+        mut iv: Block,
+        aes_iterations: usize,
+        breadth_iterations: usize,
+    ) {
+        for _ in 0..breadth_iterations {
+            iv = encode_internal(piece, &keys.keys_enc, iv, aes_iterations);
+        }
+    }
+
+    /// Proof of replication decoding purely in software (using look-up table approach)
+    pub fn decode(
+        &self,
+        piece: &mut Piece,
+        keys: &SoftwareLuTKeys,
+        iv: &Block,
+        aes_iterations: usize,
+        breadth_iterations: usize,
+    ) {
+        for _ in 1..breadth_iterations {
+            decode_internal(piece, &keys.keys_dec, None, aes_iterations);
+        }
+
+        decode_internal(piece, &keys.keys_dec, Some(iv), aes_iterations);
+    }
 }
 
 fn encode_internal(
@@ -108,20 +126,23 @@ mod tests {
     use crate::por::test_data::ID;
     use crate::por::test_data::INPUT;
     use crate::por::test_data::IV;
-    use crate::por::PIECE_SIZE;
+    use crate::PIECE_SIZE;
     use rand::Rng;
 
     #[test]
     fn test() {
         let aes_iterations = 256;
 
+        let keys = SoftwareLuTKeys::new(&ID);
+        let por = SoftwareLuT::new();
+
         let mut encoding = INPUT;
-        encode(&mut encoding, &ID, IV, aes_iterations, 1);
+        por.encode(&mut encoding, &keys, IV, aes_iterations, 1);
 
         assert_eq!(encoding.to_vec(), CORRECT_ENCODING.to_vec());
 
         let mut decoding = CORRECT_ENCODING;
-        decode(&mut decoding, &ID, &IV, aes_iterations, 1);
+        por.decode(&mut decoding, &keys, &IV, aes_iterations, 1);
 
         assert_eq!(decoding.to_vec(), INPUT.to_vec());
     }
@@ -130,13 +151,16 @@ mod tests {
     fn test_breadth_10() {
         let aes_iterations = 256;
 
+        let keys = SoftwareLuTKeys::new(&ID);
+        let por = SoftwareLuT::new();
+
         let mut encoding = INPUT;
-        encode(&mut encoding, &ID, IV, aes_iterations, 10);
+        por.encode(&mut encoding, &keys, IV, aes_iterations, 10);
 
         assert_eq!(encoding.to_vec(), CORRECT_ENCODING_BREADTH_10.to_vec());
 
         let mut decoding = CORRECT_ENCODING_BREADTH_10;
-        decode(&mut decoding, &ID, &IV, aes_iterations, 10);
+        por.decode(&mut decoding, &keys, &IV, aes_iterations, 10);
 
         assert_eq!(decoding.to_vec(), INPUT.to_vec());
     }
@@ -154,11 +178,14 @@ mod tests {
         let mut iv = [0u8; 16];
         rand::thread_rng().fill(&mut iv[..]);
 
+        let keys = SoftwareLuTKeys::new(&id);
+        let por = SoftwareLuT::new();
+
         let mut encoding = input;
-        encode(&mut encoding, &id, iv, aes_iterations, 1);
+        por.encode(&mut encoding, &keys, iv, aes_iterations, 1);
 
         let mut decoding = encoding;
-        decode(&mut decoding, &id, &iv, aes_iterations, 1);
+        por.decode(&mut decoding, &keys, &iv, aes_iterations, 1);
 
         assert_eq!(decoding.to_vec(), input.to_vec());
     }
@@ -176,11 +203,14 @@ mod tests {
         let mut iv = [0u8; 16];
         rand::thread_rng().fill(&mut iv[..]);
 
+        let keys = SoftwareLuTKeys::new(&id);
+        let por = SoftwareLuT::new();
+
         let mut encoding = input;
-        encode(&mut encoding, &id, iv, aes_iterations, 10);
+        por.encode(&mut encoding, &keys, iv, aes_iterations, 10);
 
         let mut decoding = encoding;
-        decode(&mut decoding, &id, &iv, aes_iterations, 10);
+        por.decode(&mut decoding, &keys, &iv, aes_iterations, 10);
 
         assert_eq!(decoding.to_vec(), input.to_vec());
     }

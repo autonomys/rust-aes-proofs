@@ -1,3 +1,6 @@
+mod expand;
+
+use crate::Block;
 use core::arch::x86_64::*;
 
 #[macro_export]
@@ -113,27 +116,6 @@ macro_rules! aes128_load4 {
     };
 }
 
-#[macro_export]
-macro_rules! aes128_load_keys {
-    ($var:expr) => {{
-        use core::arch::x86_64::*;
-
-        [
-            _mm_loadu_si128($var[0].as_ptr() as *const __m128i),
-            _mm_loadu_si128($var[1].as_ptr() as *const __m128i),
-            _mm_loadu_si128($var[2].as_ptr() as *const __m128i),
-            _mm_loadu_si128($var[3].as_ptr() as *const __m128i),
-            _mm_loadu_si128($var[4].as_ptr() as *const __m128i),
-            _mm_loadu_si128($var[5].as_ptr() as *const __m128i),
-            _mm_loadu_si128($var[6].as_ptr() as *const __m128i),
-            _mm_loadu_si128($var[7].as_ptr() as *const __m128i),
-            _mm_loadu_si128($var[8].as_ptr() as *const __m128i),
-            _mm_loadu_si128($var[9].as_ptr() as *const __m128i),
-            _mm_loadu_si128($var[10].as_ptr() as *const __m128i),
-        ]
-    }};
-}
-
 macro_rules! compare_eq4 {
     ($what:expr, $with:expr) => {{
         use core::arch::x86_64::*;
@@ -155,40 +137,6 @@ macro_rules! compare_eq4 {
         value == [u128::max_value()]
     }};
 }
-
-// pub fn decode_aes_ni_128_pipelined_x4(
-//     keys: &[[u8; 16]; 11],
-//     blocks: [&mut [u8; 16]; 4],
-//     feedbacks: &[[u8; 16]; 4],
-//     rounds: usize,
-// ) {
-//     unsafe {
-//         let mut blocks_reg = aes128_load4!(blocks);
-//         let feedbacks_reg = aes128_load4!(feedbacks);
-//
-//         let keys_reg = aes128_load_keys!(keys);
-//
-//         for _ in 0..rounds {
-//             aes128_xor4!(blocks_reg, keys_reg[10]);
-//
-//             aes128_decode4!(blocks_reg, keys_reg[9]);
-//             aes128_decode4!(blocks_reg, keys_reg[8]);
-//             aes128_decode4!(blocks_reg, keys_reg[7]);
-//             aes128_decode4!(blocks_reg, keys_reg[6]);
-//             aes128_decode4!(blocks_reg, keys_reg[5]);
-//             aes128_decode4!(blocks_reg, keys_reg[4]);
-//             aes128_decode4!(blocks_reg, keys_reg[3]);
-//             aes128_decode4!(blocks_reg, keys_reg[2]);
-//             aes128_decode4!(blocks_reg, keys_reg[1]);
-//
-//             aes128_decode4_last!(blocks_reg, keys_reg[0]);
-//         }
-//
-//         aes128_xor4x4!(blocks_reg, feedbacks_reg);
-//
-//         aes128_store4!(blocks, blocks_reg);
-//     }
-// }
 
 pub fn por_encode_pipelined_x4_low_level(
     keys_reg: [__m128i; 11],
@@ -294,4 +242,10 @@ pub fn pot_verify_pipelined_x4_low_level(
 
         compare_eq4!(expected_reg, blocks_reg)
     }
+}
+
+pub type ExpandedKeys = [__m128i; 11];
+
+pub fn expand(key: &Block) -> (ExpandedKeys, ExpandedKeys) {
+    expand::expand(key)
 }

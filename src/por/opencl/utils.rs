@@ -1,10 +1,10 @@
-use crate::por::Block;
+use crate::Block;
 use ocl::core::Uchar16;
 use ocl::core::Uint;
 use std::convert::TryInto;
 
 pub fn inputs_to_uchar16_vec(input: &[u8]) -> Vec<Uchar16> {
-    assert_eq!(input.len() % 4, 0);
+    assert!(input.len() % 4 == 0);
 
     input
         .chunks_exact(16)

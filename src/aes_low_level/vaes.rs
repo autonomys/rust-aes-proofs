@@ -1,28 +1,21 @@
-use crate::por::Block;
-use crate::por::BLOCK_SIZE;
+use crate::aes_low_level::aes_ni::ExpandedKeys;
+use crate::Block;
+use crate::BLOCK_SIZE;
 use std::io::Write;
 
 pub fn por_encode_pipelined_x12_low_level(
-    keys: &[Block; 11],
+    keys: &ExpandedKeys,
     blocks: &mut [&mut [u8]; 12],
     feedbacks: &[Block; 12],
     aes_iterations: usize,
 ) {
     for block in blocks.iter() {
-        assert_eq!(
-            block.len(),
-            BLOCK_SIZE,
+        assert!(
+            block.len() == BLOCK_SIZE,
             "Block length must be {} bytes",
             BLOCK_SIZE,
         );
     }
-    let mut keys_flat = [0u8; 176];
-    keys_flat
-        .chunks_exact_mut(BLOCK_SIZE)
-        .zip(keys.iter())
-        .for_each(|(chunk, key)| {
-            chunk.as_mut().write_all(key.as_ref()).unwrap();
-        });
 
     let mut blocks_0 = [0u8; BLOCK_SIZE * 4];
     blocks_0
@@ -76,7 +69,7 @@ pub fn por_encode_pipelined_x12_low_level(
             feedbacks_0.as_ptr(),
             feedbacks_1.as_ptr(),
             feedbacks_2.as_ptr(),
-            keys_flat.as_ptr(),
+            keys.as_ptr(),
             aes_iterations,
         );
     }
@@ -102,130 +95,166 @@ pub fn por_encode_pipelined_x12_low_level(
 }
 
 pub fn por_decode_pipelined_x12_low_level(
-    keys: &[Block; 11],
+    keys: &ExpandedKeys,
     blocks: &mut [u8],
     feedbacks: &[u8],
     aes_iterations: usize,
 ) {
-    assert_eq!(
-        blocks.len(),
-        BLOCK_SIZE * 12,
+    assert!(
+        blocks.len() == BLOCK_SIZE * 12,
         "Blocks length must be exactly 12 blocks",
     );
-    assert_eq!(
-        feedbacks.len(),
-        BLOCK_SIZE * 12,
+    assert!(
+        feedbacks.len() == BLOCK_SIZE * 12,
         "Feedbacks length must be exactly 12 blocks",
     );
-
-    let mut keys_flat = [0u8; 176];
-    keys_flat
-        .chunks_exact_mut(BLOCK_SIZE)
-        .zip(keys.iter())
-        .for_each(|(chunk, key)| {
-            chunk.as_mut().write_all(key.as_ref()).unwrap();
-        });
 
     unsafe {
         c_exports::por_decode_pipelined_x12_low_level(
             blocks.as_mut_ptr(),
             feedbacks.as_ptr(),
-            keys_flat.as_ptr(),
+            keys.as_ptr(),
             aes_iterations,
         );
     }
 }
 
-pub fn por_decode_pipelined_x4_low_level(
-    keys: &[Block; 11],
+pub fn por_decode_x4_low_level(
+    keys: &ExpandedKeys,
     blocks: &mut [u8],
     feedbacks: &[u8],
     aes_iterations: usize,
 ) {
-    assert_eq!(
-        blocks.len(),
-        BLOCK_SIZE * 4,
+    assert!(
+        blocks.len() == BLOCK_SIZE * 4,
         "Blocks length must be exactly 4 blocks",
     );
-    assert_eq!(
-        feedbacks.len(),
-        BLOCK_SIZE * 4,
+    assert!(
+        feedbacks.len() == BLOCK_SIZE * 4,
         "Feedbacks length must be exactly 4 blocks",
     );
 
-    let mut keys_flat = [0u8; 176];
-    keys_flat
-        .chunks_exact_mut(BLOCK_SIZE)
-        .zip(keys.iter())
-        .for_each(|(chunk, key)| {
-            chunk.as_mut().write_all(key.as_ref()).unwrap();
-        });
-
     unsafe {
-        c_exports::por_decode_pipelined_x4_low_level(
+        c_exports::por_decode_x4_low_level(
             blocks.as_mut_ptr(),
             feedbacks.as_ptr(),
-            keys_flat.as_ptr(),
+            keys.as_ptr(),
             aes_iterations,
         );
     }
 }
 
-// pub fn pot_prove_low_level(
-//     keys_reg: [__m128i; 11],
-//     mut block_reg: __m128i,
-//     inner_iterations: usize,
-// ) -> __m128i {
-//     unsafe {
-//         for _ in 0..inner_iterations {
-//             block_reg = _mm_xor_si128(block_reg, keys_reg[0]);
-//             block_reg = _mm_aesenc_si128(block_reg, keys_reg[1]);
-//             block_reg = _mm_aesenc_si128(block_reg, keys_reg[2]);
-//             block_reg = _mm_aesenc_si128(block_reg, keys_reg[3]);
-//             block_reg = _mm_aesenc_si128(block_reg, keys_reg[4]);
-//             block_reg = _mm_aesenc_si128(block_reg, keys_reg[5]);
-//             block_reg = _mm_aesenc_si128(block_reg, keys_reg[6]);
-//             block_reg = _mm_aesenc_si128(block_reg, keys_reg[7]);
-//             block_reg = _mm_aesenc_si128(block_reg, keys_reg[8]);
-//             block_reg = _mm_aesenc_si128(block_reg, keys_reg[9]);
-//
-//             block_reg = _mm_aesenclast_si128(block_reg, keys_reg[10]);
-//         }
-//     }
-//
-//     block_reg
-// }
-//
-// pub fn pot_verify_pipelined_x4_low_level(
-//     keys_reg: [__m128i; 11],
-//     expected_reg: [__m128i; 4],
-//     mut blocks_reg: [__m128i; 4],
-//     aes_iterations: usize,
-// ) -> bool {
-//     unsafe {
-//         for _ in 0..aes_iterations {
-//             aes128_xor4!(blocks_reg, keys_reg[10]);
-//
-//             aes128_decode4!(blocks_reg, keys_reg[9]);
-//             aes128_decode4!(blocks_reg, keys_reg[8]);
-//             aes128_decode4!(blocks_reg, keys_reg[7]);
-//             aes128_decode4!(blocks_reg, keys_reg[6]);
-//             aes128_decode4!(blocks_reg, keys_reg[5]);
-//             aes128_decode4!(blocks_reg, keys_reg[4]);
-//             aes128_decode4!(blocks_reg, keys_reg[3]);
-//             aes128_decode4!(blocks_reg, keys_reg[2]);
-//             aes128_decode4!(blocks_reg, keys_reg[1]);
-//
-//             aes128_decode4_last!(blocks_reg, keys_reg[0]);
-//         }
-//
-//         compare_eq4!(expected_reg, blocks_reg)
-//     }
-// }
+pub fn pot_verify_pipelined_x12_low_level(
+    keys: &ExpandedKeys,
+    expected_first_block: &[u8],
+    blocks: &[u8],
+    aes_iterations: usize,
+) -> bool {
+    assert!(
+        blocks.len() == BLOCK_SIZE * 12,
+        "Blocks length must be exactly 12 blocks",
+    );
+    assert!(
+        expected_first_block.len() == BLOCK_SIZE,
+        "Expected first block length is incorrect",
+    );
+
+    let mut expected_first_4_blocks = [0u8; BLOCK_SIZE * 4];
+    expected_first_4_blocks
+        .as_mut()
+        .write_all(expected_first_block)
+        .unwrap();
+    expected_first_4_blocks[BLOCK_SIZE..]
+        .as_mut()
+        .write_all(&blocks[..(blocks.len() - BLOCK_SIZE)])
+        .unwrap();
+
+    unsafe {
+        c_exports::pot_verify_pipelined_x12_low_level(
+            blocks.as_ptr(),
+            expected_first_4_blocks.as_ptr(),
+            keys.as_ptr(),
+            aes_iterations,
+        ) == u8::max_value()
+    }
+}
+
+pub fn pot_verify_pipelined_x8_low_level(
+    keys: &ExpandedKeys,
+    expected_first_block: &[u8],
+    blocks: &[u8],
+    aes_iterations: usize,
+) -> bool {
+    assert!(
+        blocks.len() == BLOCK_SIZE * 8,
+        "Blocks length must be exactly 8 blocks",
+    );
+    assert!(
+        expected_first_block.len() == BLOCK_SIZE,
+        "Expected first block length is incorrect",
+    );
+
+    let mut expected_first_4_blocks = [0u8; BLOCK_SIZE * 4];
+    expected_first_4_blocks
+        .as_mut()
+        .write_all(expected_first_block)
+        .unwrap();
+    expected_first_4_blocks[BLOCK_SIZE..]
+        .as_mut()
+        .write_all(&blocks[..(blocks.len() - BLOCK_SIZE)])
+        .unwrap();
+
+    unsafe {
+        c_exports::pot_verify_pipelined_x8_low_level(
+            blocks.as_ptr(),
+            expected_first_4_blocks.as_ptr(),
+            keys.as_ptr(),
+            aes_iterations,
+        ) == u8::max_value()
+    }
+}
+
+pub fn pot_verify_x4_low_level(
+    keys: &ExpandedKeys,
+    expected_first_block: &[u8],
+    blocks: &[u8],
+    aes_iterations: usize,
+) -> bool {
+    assert!(
+        blocks.len() == BLOCK_SIZE * 4,
+        "Blocks length must be exactly 4 blocks",
+    );
+    assert!(
+        expected_first_block.len() == BLOCK_SIZE,
+        "Expected first block length is incorrect",
+    );
+
+    let mut expected_blocks = [0u8; BLOCK_SIZE * 4];
+    expected_blocks
+        .as_mut()
+        .write_all(expected_first_block)
+        .unwrap();
+    expected_blocks[BLOCK_SIZE..]
+        .as_mut()
+        .write_all(&blocks[..(blocks.len() - BLOCK_SIZE)])
+        .unwrap();
+
+    unsafe {
+        c_exports::pot_verify_x4_low_level(
+            blocks.as_ptr(),
+            expected_blocks.as_ptr(),
+            keys.as_ptr(),
+            aes_iterations,
+        ) == u8::max_value()
+    }
+}
 
 mod c_exports {
+    use core::arch::x86_64::*;
+
     #[link(name = "vaes")]
     extern "C" {
+        // TODO: Compiler complains about `__m128i` in below functions and probably rightfully so
         pub fn por_encode_pipelined_x12_low_level(
             blocks_0: *mut u8,
             blocks_1: *mut u8,
@@ -233,22 +262,43 @@ mod c_exports {
             feedbacks_0: *const u8,
             feedbacks_1: *const u8,
             feedbacks_2: *const u8,
-            keys: *const u8,
+            keys: *const __m128i,
             aes_iterations: usize,
         );
 
         pub fn por_decode_pipelined_x12_low_level(
             blocks: *mut u8,
             feedbacks: *const u8,
-            keys: *const u8,
+            keys: *const __m128i,
             aes_iterations: usize,
         );
 
-        pub fn por_decode_pipelined_x4_low_level(
+        pub fn por_decode_x4_low_level(
             blocks: *mut u8,
             feedbacks: *const u8,
-            keys: *const u8,
+            keys: *const __m128i,
             aes_iterations: usize,
         );
+
+        pub fn pot_verify_pipelined_x12_low_level(
+            blocks: *const u8,
+            expected_first_4_blocks: *const u8,
+            keys: *const __m128i,
+            aes_iterations: usize,
+        ) -> u8;
+
+        pub fn pot_verify_pipelined_x8_low_level(
+            blocks: *const u8,
+            expected_first_4_blocks: *const u8,
+            keys: *const __m128i,
+            aes_iterations: usize,
+        ) -> u8;
+
+        pub fn pot_verify_x4_low_level(
+            blocks: *const u8,
+            expected_blocks: *const u8,
+            keys: *const __m128i,
+            aes_iterations: usize,
+        ) -> u8;
     }
 }
